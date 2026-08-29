@@ -1,9 +1,14 @@
 @echo off
-rem Dagitilabilir .exe uretir -> dist\Docvera\
+rem Dagitilabilir .exe uretir -> dist\Docvera\ klasoru
 rem
-rem credentials.json varsa pakete GOMULUR. Boylece son kullanici hicbir
-rem Google kurulumu yapmaz: "Google Drive'a baglan" -> onayla -> biter.
-rem Dosya yoksa uygulama yine calisir, sadece Drive yuklemesi kapali kalir.
+rem OAuth istemci dosyasi (credentials.json) BILEREK dagitilmaz: her kurulum
+rem kendi Google projesini kullanir. Boylece kota, sorumluluk ve olasi bir
+rem askiya alinma her musteride ayri kalir; tek bir proje uzerinden gidilseydi
+rem biri kotayi doldurdugunda herkesin yuklemesi dururdu.
+rem Kullanici kendi dosyasini Ayarlar > Google Drive > Dosya sec ile yukler.
+rem
+rem Ozel bir dagitim icin gomulu istemci isteniyorsa proje kokune
+rem credentials.json koymak yeterli; asagidaki dal onu pakete gomer.
 cd /d "%~dp0"
 setlocal
 
@@ -13,7 +18,7 @@ rem ve hedef bilgisayarda Qt ile cakismasini engeller.
 set "PATH=%~dp0.venv\Scripts;%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem"
 
 if exist "credentials.json" (
-    echo [+] credentials.json bulundu, pakete gomulecek.
+    echo [i] credentials.json bulundu - ozel dagitim, pakete gomulecek.
     .venv\Scripts\python.exe -m PyInstaller --clean --onedir --noconfirm --windowed ^
         --name Docvera --paths . ^
         --icon "app\varliklar\docvera-simge.ico" ^
@@ -21,10 +26,7 @@ if exist "credentials.json" (
         --add-data "credentials.json;." ^
         app\__main__.py
 ) else (
-    echo [!] credentials.json YOK - Drive baglantisi son kullanicida calismaz.
-    echo     Google Cloud Console'dan Masaustu OAuth istemcisi indirip
-    echo     bu klasore credentials.json adiyla koyun, sonra tekrar calistirin.
-    echo.
+    echo [i] Standart paket: Drive baglantisini her kullanici kendi kurar.
     .venv\Scripts\python.exe -m PyInstaller --clean --onedir --noconfirm --windowed ^
         --name Docvera --paths . ^
         --icon "app\varliklar\docvera-simge.ico" ^

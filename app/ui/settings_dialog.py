@@ -273,30 +273,43 @@ class AyarlarDiyalogu(QDialog):
         return kutu
 
     def _baglanti_yontemi_kutusu(self) -> QGroupBox:
-        """Iki baglanti yontemini acikca sunar.
+        """Baglanti kurulumunu sunar.
 
-        Cogu kullanici icin dogru cevap 1. secenek: hicbir kurulum yok.
-        2. secenek, arsivin kendi Google projeleri uzerinden gitmesini
-        isteyen (veya kurumsal politikasi boyle olan) kullanicilar icin.
+        Uygulamayla gomulu bir OAuth istemcisi DAGITILMIYOR: her kurulum kendi
+        Google projesini kullanir. Boylece kota, sorumluluk ve olasi bir
+        askiya alinma her musteride ayri kalir - tek bir proje uzerinden
+        gidilseydi biri kotayi doldurdugunda herkesin yuklemesi dururdu.
+
+        Yine de gomulu bir dosya bulunursa (ozel dagitim) o da desteklenir;
+        bu durumda ek secenek olarak gosterilir.
         """
-        kutu = QGroupBox("Bağlantı yöntemi")
+        from app.drive.auth import gomulu_istemci_yolu
+
+        kutu = QGroupBox("Bağlantı kurulumu")
         duzen = QVBoxLayout(kutu)
 
-        # --- Secenek 1: uygulamayla gelen baglanti -----------------------
+        gomulu_var = gomulu_istemci_yolu().is_file()
+
+        # --- Uygulamayla gelen baglanti (varsa) --------------------------
         birinci = QLabel(
-            "<b>1) Docvera ile bağlan</b> &nbsp;<i>(önerilen)</i><br>"
+            "<b>Docvera ile bağlan</b><br>"
             "Yukarıdaki <b>Google Drive'a bağlan</b> düğmesine basın, açılan "
-            "Google sayfasından hesabınızı seçip izin verin. Başka hiçbir işlem "
-            "yok."
+            "Google sayfasından hesabınızı seçip izin verin."
         )
         birinci.setWordWrap(True)
         birinci.setStyleSheet("font-size: 11px;")
+        # Gomulu istemci dagitilmadiginda bu secenek hic gosterilmez
+        birinci.setVisible(gomulu_var)
+        self.gomulu_secenek_etiketi = birinci
 
-        # --- Secenek 2: kendi Google projesi -----------------------------
+        # --- Kendi Google projesi ----------------------------------------
         ikinci = QLabel(
-            "<b>2) Kendi Google hesabımla bağlan</b><br>"
-            "Google Cloud'da kendi projenizi oluşturup indirdiğiniz dosyayı "
-            "seçersiniz. Yaklaşık 5 dakika sürer, bir kez yapılır."
+            ("<b>Kendi Google hesabınızla bağlanın</b><br>" if not gomulu_var
+             else "<b>Kendi Google hesabımla bağlan</b><br>")
+            + "Google Drive'a yükleme için kendi Google projenizi oluşturup "
+            "indirdiğiniz dosyayı seçmeniz gerekir. Yaklaşık 5 dakika sürer ve "
+            "bu bilgisayarda bir kez yapılır.<br>"
+            "<b>Nasıl yapılır?</b> düğmesi adım adım anlatır."
         )
         ikinci.setWordWrap(True)
         ikinci.setStyleSheet("font-size: 11px;")
@@ -338,29 +351,41 @@ class AyarlarDiyalogu(QDialog):
         return kutu
 
     def _istemci_durumunu_yaz(self) -> None:
-        """Hangi baglanti yonteminin etkin oldugunu gosterir."""
-        from app.drive.auth import istemci_hazir_mi, kullanici_istemcisi_var_mi
+        """Hangi baglantinin kullanildigini gosterir ve dugmeleri ayarlar.
+
+        Istemci dosyasi yokken 'Google Drive'a bağlan' dugmesi kapali tutulur:
+        acik biraksaydik basildiginda ancak hata penceresiyle ogrenilirdi.
+        """
+        from app.drive.auth import (
+            gomulu_istemci_yolu,
+            istemci_hazir_mi,
+            kullanici_istemcisi_var_mi,
+        )
 
         kendi = kullanici_istemcisi_var_mi(veri_klasoru())
+        hazir = istemci_hazir_mi(veri_klasoru())
+
         self.istemci_kaldir_dugmesi.setEnabled(kendi)
+        self.baglan_dugmesi.setEnabled(hazir)
+        self.baglan_dugmesi.setToolTip(
+            "" if hazir
+            else "Önce aşağıdan Google bağlantı dosyanızı seçin"
+        )
 
         if kendi:
-            self.istemci_durumu.setText(
-                "Şu an <b>kendi Google projeniz</b> kullanılıyor."
-            )
+            self.istemci_durumu.setText("Kendi Google projeniz kurulu.")
             self.istemci_durumu.setStyleSheet("font-size: 11px; color: #1f6f43;")
-        elif istemci_hazir_mi(veri_klasoru()):
+        elif gomulu_istemci_yolu().is_file():
             self.istemci_durumu.setText(
-                "Şu an <b>uygulamayla gelen bağlantı</b> kullanılıyor - "
-                "1. seçenek hazır."
+                "Uygulamayla gelen bağlantı kullanılıyor."
             )
             self.istemci_durumu.setStyleSheet("font-size: 11px; color: #666;")
         else:
             self.istemci_durumu.setText(
-                "Uygulamayla gelen bağlantı dosyası bulunamadı. "
-                "<b>2. seçeneği</b> kullanın ya da uygulamayı yeniden kurun."
+                "Henüz bir Google bağlantısı kurulmadı. "
+                "<b>Nasıl yapılır?</b> düğmesiyle başlayın."
             )
-            self.istemci_durumu.setStyleSheet("font-size: 11px; color: #c0392b;")
+            self.istemci_durumu.setStyleSheet("font-size: 11px; color: #b8860b;")
 
     def _drive_rehberini_ac(self) -> None:
         from app.ui.drive_rehber_dialog import DriveRehberDiyalogu

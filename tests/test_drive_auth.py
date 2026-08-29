@@ -148,3 +148,81 @@ class TestRehber:
         assert "Masaüstü uygulaması" in tum_metin, "Istemci turu uyarisi yok"
         assert "yayınla" in tum_metin.lower(), "Uygulamayi yayinlama uyarisi yok"
         assert "7 gün" in tum_metin, "Test modunda jeton dusme uyarisi yok"
+
+
+class TestAyarlarAkisi:
+    """Gomulu istemci DAGITILMIYOR; her kurulum kendi projesini kurar."""
+
+    @staticmethod
+    def _diyalog(tmp_path, monkeypatch, gomulu_var: bool = False):
+        from PySide6.QtWidgets import QApplication
+
+        import app.ui.settings_dialog as sd
+        from app.config import Ayarlar
+        from app.db import Veritabani
+        from app.ui.settings_dialog import AyarlarDiyalogu
+
+        QApplication.instance() or QApplication([])
+
+        gomulu = tmp_path / "gomulu.json"
+        if gomulu_var:
+            gomulu.write_text(json.dumps(MASAUSTU), encoding="utf-8")
+        monkeypatch.setattr(auth, "gomulu_istemci_yolu", lambda: gomulu)
+
+        veri = tmp_path / "appdata"
+        veri.mkdir(exist_ok=True)
+        monkeypatch.setattr(sd, "veri_klasoru", lambda: veri)
+
+        vt = Veritabani(tmp_path / "t.db")
+        diyalog = AyarlarDiyalogu(Ayarlar(kok_klasor=str(tmp_path)), vt)
+        return diyalog, veri, vt
+
+    def test_baglanti_yokken_baglan_dugmesi_kapali(self, tmp_path, monkeypatch):
+        """Acik biraksaydik hata ancak basildiktan sonra ogrenilirdi."""
+        diyalog, _veri, vt = self._diyalog(tmp_path, monkeypatch)
+        try:
+            assert not diyalog.baglan_dugmesi.isEnabled()
+            assert diyalog.baglan_dugmesi.toolTip()
+        finally:
+            vt.kapat()
+
+    def test_gomulu_yokken_o_secenek_gosterilmez(self, tmp_path, monkeypatch):
+        diyalog, _veri, vt = self._diyalog(tmp_path, monkeypatch)
+        try:
+            assert diyalog.gomulu_secenek_etiketi.isHidden()
+        finally:
+            vt.kapat()
+
+    def test_gomulu_varsa_secenek_gorunur(self, tmp_path, monkeypatch):
+        diyalog, _veri, vt = self._diyalog(tmp_path, monkeypatch, gomulu_var=True)
+        try:
+            assert not diyalog.gomulu_secenek_etiketi.isHidden()
+            assert diyalog.baglan_dugmesi.isEnabled()
+        finally:
+            vt.kapat()
+
+    def test_dosya_yuklenince_baglan_acilir(self, tmp_path, monkeypatch):
+        diyalog, veri, vt = self._diyalog(tmp_path, monkeypatch)
+        try:
+            kaynak = tmp_path / "indirilen.json"
+            kaynak.write_text(json.dumps(MASAUSTU), encoding="utf-8")
+            auth.istemci_dosyasini_kur(kaynak, veri)
+            diyalog._istemci_durumunu_yaz()
+
+            assert diyalog.baglan_dugmesi.isEnabled()
+            assert diyalog.istemci_kaldir_dugmesi.isEnabled()
+        finally:
+            vt.kapat()
+
+    def test_kaldirinca_baglan_tekrar_kapanir(self, tmp_path, monkeypatch):
+        diyalog, veri, vt = self._diyalog(tmp_path, monkeypatch)
+        try:
+            kaynak = tmp_path / "indirilen.json"
+            kaynak.write_text(json.dumps(MASAUSTU), encoding="utf-8")
+            auth.istemci_dosyasini_kur(kaynak, veri)
+            auth.kullanici_istemcisini_sil(veri)
+            diyalog._istemci_durumunu_yaz()
+
+            assert not diyalog.baglan_dugmesi.isEnabled()
+        finally:
+            vt.kapat()

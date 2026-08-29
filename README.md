@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
 ![Python](https://img.shields.io/badge/python-3.10%20--%203.14-3776AB)
 ![Arayüz](https://img.shields.io/badge/aray%C3%BCz-PySide6-41CD52)
-![Testler](https://img.shields.io/badge/testler-269%20ge%C3%A7iyor-2EA043)
+![Testler](https://img.shields.io/badge/testler-274%20ge%C3%A7iyor-2EA043)
 
 </div>
 
@@ -222,31 +222,43 @@ Bunun iki önemli sonucu var:
 > `drive.file` hassas kapsam olmadığı için Üretim'e almak Google doğrulama
 > sürecini gerektirmez.
 
-### İki bağlantı yöntemi
+### Her kurulum kendi Google projesini kullanır
 
-Ayarlar → Google Drive sekmesinde iki seçenek sunulur.
+Docvera'ya **gömülü bir OAuth istemcisi dağıtılmaz.** Kullanıcı Ayarlar → Google
+Drive → **Dosya seç** ile kendi Google projesinin dosyasını yükler.
 
-#### 1) Docvera ile bağlan — önerilen
+Bu bilinçli bir karardır. Tek bir paylaşılan proje üzerinden gidilseydi:
 
-Kullanıcı **Google Drive'a bağlan** düğmesine basar, açılan Google sayfasından
-hesabını seçip izin verir. Başka hiçbir işlem yok.
+- Tüm kurulumlar aynı API kotasını paylaşırdı
+- Biri kötüye kullandığında Google projeyi askıya alır, **herkesin** yüklemesi
+  aynı anda dururdu
+- Google nezdinde sorumluluk tek bir kişide toplanırdı
 
-Bunun çalışması için OAuth istemci dosyasının **uygulamaya gömülü** olması
-gerekir. `paketle.bat`, proje kökünde `credentials.json` görürse pakete otomatik
-gömer; görmezse uyarır ve Drive'sız paket üretir.
+Kendi projesini kuran kullanıcının kotası, sorumluluğu ve riski kendisinde kalır.
 
-> Bu, geliştirici tarafında **bir kez** yapılır. Sonrasında uygulama kaç
-> bilgisayara kurulursa kurulsun son kullanıcı Google Cloud'u hiç görmez.
+> **Ne kadar sürer:** ~5 dakika, bilgisayar başına bir kez.
+> Ayarlar → Google Drive → **Nasıl yapılır?** düğmesi adım adım anlatan bir
+> pencere açar; her adımın Google sayfasını tek tuşla açar ve adımlar panoya
+> kopyalanabilir.
+
+Bağlantı kurulmadan **Google Drive'a bağlan** düğmesi kapalı durur ve neden
+kapalı olduğunu söyler — basıldıktan sonra hata penceresiyle öğrenilmez.
+
+<details>
+<summary><b>Gömülü istemciyle dağıtım</b> (özel durum)</summary>
+
+Kapalı bir müşteri grubuna dağıtım yapılıyorsa proje köküne `credentials.json`
+konabilir; `paketle.bat` onu pakete gömer ve kullanıcı hiçbir kurulum yapmadan
+tek tuşla bağlanır. Ayarlar penceresi bu durumda ek bir seçenek gösterir.
 
 Masaüstü uygulamalarında istemci gizli anahtarı zaten gizli tutulamaz; Google'ın
-`installed app` akışı buna göre tasarlanmıştır. Güvenlik, kullanıcının tarayıcıda
-verdiği onaya dayanır — anahtarın gizliliğine değil.
+`installed app` akışı buna göre tasarlanmıştır — güvenlik, kullanıcının
+tarayıcıda verdiği onaya dayanır, anahtarın gizliliğine değil. Yine de yukarıdaki
+ortak kota ve ortak askıya alınma riskleri geçerlidir.
 
-#### 2) Kendi Google hesabımla bağlan
+</details>
 
-Arşivin kendi Google projesi üzerinden gitmesini isteyen kullanıcılar için.
-Ayarlar → Google Drive → **Nasıl yapılır?** düğmesi adım adım anlatan bir pencere
-açar; her adımın Google sayfasını tek tuşla açar ve adımlar panoya kopyalanabilir.
+### Seçilen dosya doğrulanır
 
 Kullanıcı indirdiği JSON dosyasını **Dosya seç** ile gösterir. Dosyayı yeniden
 adlandırmasına veya bir klasöre kopyalamasına gerek yoktur — program gerekeni
@@ -263,7 +275,7 @@ Web istemcisi seçmek Google Cloud'da en sık yapılan hatadır ve normalde hata
 ancak yetkilendirme ekranında, anlaşılmaz bir mesajla ortaya çıkar. Burada dosya
 seçilir seçilmez yakalanır.
 
-**Kaldır** düğmesi kendi projeyi kaldırıp uygulamayla gelen bağlantıya döndürür.
+**Kaldır** düğmesi kurulu projeyi kaldırır.
 
 Kendi projeye geçildiğinde veya kaldırıldığında eski yetkilendirme jetonu
 silinir — başka bir projeye ait jeton geçersizdir.
