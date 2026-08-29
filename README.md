@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
 ![Python](https://img.shields.io/badge/python-3.10%20--%203.14-3776AB)
 ![Arayüz](https://img.shields.io/badge/aray%C3%BCz-PySide6-41CD52)
-![Testler](https://img.shields.io/badge/testler-191%20ge%C3%A7iyor-2EA043)
+![Testler](https://img.shields.io/badge/testler-195%20ge%C3%A7iyor-2EA043)
 
 </div>
 

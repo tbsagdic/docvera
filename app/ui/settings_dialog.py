@@ -217,15 +217,29 @@ class AyarlarDiyalogu(QDialog):
         satir.addWidget(kes_dugmesi)
         satir.addStretch(1)
 
-        kurulum = QLabel(
-            "Kurulum: Google Cloud Console'da bir OAuth <b>Masaüstü</b> istemcisi "
-            "oluşturup indirdiğiniz <code>credentials.json</code> dosyasını "
-            f"<code>{veri_klasoru()}</code> klasörüne kopyalayın. Uygulamayı "
-            "<b>Üretim</b> durumuna almayı unutmayın; Test durumunda yetkilendirme "
-            "7 günde bir düşer."
-        )
+        kurulum = QLabel()
         kurulum.setWordWrap(True)
         kurulum.setStyleSheet("color: #666; font-size: 11px;")
+
+        from app.drive.auth import istemci_hazir_mi
+
+        if istemci_hazir_mi(veri_klasoru()):
+            kurulum.setText(
+                "<b>Google Drive'a bağlan</b> düğmesine basın, açılan Google "
+                "sayfasından hesabınızı seçip izin verin. Başka bir işlem yok. "
+                f"Uygulama Drive'ınızda <b>{self.ayarlar.drive_kok_adi}</b> adlı "
+                "klasörü oluşturur ve arşivi oraya yükler; Drive'ınızdaki başka "
+                "hiçbir dosyaya erişemez."
+            )
+        else:
+            kurulum.setText(
+                "<b>Google bağlantı dosyası eksik.</b> Bu dosya normalde "
+                "uygulamayla birlikte gelir; eksikse uygulamayı yeniden kurun. "
+                "Kendi Google projenizi kullanacaksanız "
+                f"<code>credentials.json</code> dosyasını <code>{veri_klasoru()}</code> "
+                "klasörüne koyun."
+            )
+            kurulum.setStyleSheet("color: #c0392b; font-size: 11px;")
 
         duzen.addWidget(self.drive_kutusu)
         duzen.addWidget(self.drive_durumu)

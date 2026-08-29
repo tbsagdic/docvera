@@ -107,3 +107,33 @@ class TestSubeOzelligi:
     def test_ikisi_de_bosken_sube_seviyesi_olusmaz(self):
         assert Ayarlar().sube == ""
         assert Ayarlar(sube_adi="   ").sube == ""
+
+
+class TestDriveIstemciDosyasi:
+    """Gomulu credentials.json: son kullanici Google kurulumu yapmasin diye."""
+
+    def test_kullanici_dosyasi_onceliklidir(self, tmp_path, monkeypatch):
+        from app.drive import auth
+
+        kullanici = tmp_path / "credentials.json"
+        kullanici.write_text("{}", encoding="utf-8")
+        assert auth.istemci_yolu(tmp_path) == kullanici
+
+    def test_kullanici_dosyasi_yoksa_gomuluye_duser(self, tmp_path):
+        from app.drive import auth
+
+        assert auth.istemci_yolu(tmp_path) == auth.gomulu_istemci_yolu()
+
+    def test_hicbiri_yoksa_hazir_degil(self, tmp_path, monkeypatch):
+        from app.drive import auth
+
+        monkeypatch.setattr(auth, "gomulu_istemci_yolu", lambda: tmp_path / "yok.json")
+        assert not auth.istemci_hazir_mi(tmp_path)
+
+    def test_gomulu_varsa_hazir(self, tmp_path, monkeypatch):
+        from app.drive import auth
+
+        gomulu = tmp_path / "gomulu.json"
+        gomulu.write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(auth, "gomulu_istemci_yolu", lambda: gomulu)
+        assert auth.istemci_hazir_mi(tmp_path)
