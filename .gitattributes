@@ -1,0 +1,4 @@
+
+# Batch dosyalari CRLF olmali: ciplak LF ile cmd.exe if bloklarini ve
+# ^ devam satirlarini yanlis ayristirip betigi sessizce atlar.
+*.bat text eol=crlf
