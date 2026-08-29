@@ -2,8 +2,8 @@
 
 Google Cloud Console adımları teknik olmayan biri için kolay kaybolunacak
 kadar uzun. Bu pencere adımları sırayla gösterir, her adımın ilgili sayfasını
-tek tuşla açar ve en sık yapılan hatayı (Web yerine Masaüstü istemcisi
-seçmek) öne çıkarır.
+tek tuşla açar ve en sık yapılan iki hatayı (uygulamayı yayınlamamak,
+Web yerine Masaüstü istemcisi seçmek) öne çıkarır.
 """
 
 from __future__ import annotations
@@ -44,16 +44,31 @@ ADIMLAR: list[tuple[str, str, str, str]] = [
     ),
     (
         "OAuth izin ekranını doldurun",
-        "Kullanıcı türü olarak <b>Harici</b> seçin → <b>Oluştur</b>.<br>"
-        "Uygulama adı: <b>Docvera</b>, kullanıcı destek e-postası ve geliştirici "
-        "e-postası olarak kendi adresinizi yazın → <b>Kaydet ve devam et</b>.<br>"
-        "Kapsam (scope) eklemenize gerek yok, geçin.<br><br>"
-        "<span style='color:#b8860b'><b>Önemli:</b> En sonda <b>Uygulamayı yayınla</b> "
-        "(Publish app) düğmesine basın. \"Test\" durumunda kalırsa yetkilendirme "
-        "<b>7 günde bir düşer</b> ve her hafta yeniden bağlanmanız gerekir. "
-        "Yayınlamak Google onayı gerektirmez, hemen etkin olur.</span>",
-        "https://console.cloud.google.com/apis/credentials/consent",
+        "İlk kez giriyorsanız <b>Başlayın</b> düğmesine basın.<br>"
+        "Uygulama adı: <b>Docvera</b>, kullanıcı destek e-postası olarak kendi "
+        "adresinizi seçin → Hedef kitle (Audience): <b>Harici</b> → iletişim "
+        "e-postası olarak yine kendi adresinizi yazın → <b>Oluştur</b>.<br><br>"
+        "Kapsam (scope) eklemenize gerek yok, o adımı geçin.",
+        "https://console.cloud.google.com/auth/overview",
         "İzin ekranı sayfasını aç",
+    ),
+    (
+        "Uygulamayı yayınlayın (en çok atlanan adım)",
+        "Açılan sayfada <b>Uygulamayı yayınla</b> (Publish app) → <b>Onayla</b>. "
+        "Yayın durumu <b>Üretim</b> (In production) olmalı.<br><br>"
+        "<span style='color:#c0392b'><b>Bu adım atlanırsa</b> bağlanırken "
+        "<b>“Erişim engellendi — Hata 403: access_denied”</b> hatasını "
+        "alırsınız.</span> Uygulama <b>Test</b> durumundayken yalnızca "
+        "<b>Test kullanıcıları</b> listesindeki adresler giriş yapabilir ve "
+        "yetkilendirme <b>7 günde bir düşer</b>.<br><br>"
+        "Yayınlamak Google onayı gerektirmez: Docvera yalnızca kendi "
+        "oluşturduğu dosyalara erişen <b>drive.file</b> kapsamını ister, bu "
+        "hassas bir kapsam değildir. Yayınla dediğiniz anda etkin olur.<br><br>"
+        "Yine de Test durumunda kalmak isterseniz aynı sayfada "
+        "<b>Test kullanıcıları → Kullanıcı ekle</b> ile giriş yapacağınız "
+        "Gmail adresini eklemeniz <b>zorunludur</b>.",
+        "https://console.cloud.google.com/auth/audience",
+        "Hedef kitle sayfasını aç",
     ),
     (
         "Masaüstü istemcisi oluşturun ve indirin",

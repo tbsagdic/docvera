@@ -217,10 +217,14 @@ Bunun iki önemli sonucu var:
 > dosyaları elle o klasörün içine taşıyın.
 
 > **2. OAuth uygulaması "Üretim" durumuna alınmalıdır.**
-> Google Cloud Console'da uygulama "Test" durumundayken yenileme jetonu **7 günde
-> bir düşer** ve kasiyer her hafta yeniden giriş yapmak zorunda kalır.
+> Google Cloud Console'da uygulama "Test" durumundayken yalnızca **Test
+> kullanıcıları** listesindeki adresler giriş yapabilir; listede olmayan hesap
+> yetkilendirme ekranında **"Erişim engellendi — Hata 403: access_denied"**
+> alır. Test durumu geçilse bile yenileme jetonu **7 günde bir düşer** ve
+> kasiyer her hafta yeniden giriş yapmak zorunda kalır.
 > `drive.file` hassas kapsam olmadığı için Üretim'e almak Google doğrulama
-> sürecini gerektirmez.
+> sürecini gerektirmez; **Hedef kitle** (Audience) sayfasındaki *Uygulamayı
+> yayınla* düğmesi yeter.
 
 ### Her kurulum kendi Google projesini kullanır
 
