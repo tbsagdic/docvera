@@ -66,7 +66,14 @@ ADIMLAR: list[tuple[str, str, str, str]] = [
         "hassas bir kapsam değildir. Yayınla dediğiniz anda etkin olur.<br><br>"
         "Yine de Test durumunda kalmak isterseniz aynı sayfada "
         "<b>Test kullanıcıları → Kullanıcı ekle</b> ile giriş yapacağınız "
-        "Gmail adresini eklemeniz <b>zorunludur</b>.",
+        "Gmail adresini eklemeniz <b>zorunludur</b>.<br><br>"
+        "<b>Yayınla düğmesi soluk mu?</b> Sayfa \"OAuth yapılandırması eksik\" "
+        "diyorsa <b>Markalama</b> (Branding) sayfasına gidin, yıldızlı boş "
+        "alanları doldurup <b>Kaydet</b> deyin: uygulama adı, destek e-postası "
+        "ve en alttaki <b>geliştirici iletişim e-postası</b>. Logo, ana sayfa, "
+        "gizlilik ve şartlar bağlantıları boş kalabilir — <b>logo yüklemeyin</b>, "
+        "logo yüklenen uygulama Google doğrulamasına girmek zorunda kalır. "
+        "Kaydettikten sonra bu sayfaya dönün, düğme tıklanabilir olur.",
         "https://console.cloud.google.com/auth/audience",
         "Hedef kitle sayfasını aç",
     ),
