@@ -206,6 +206,38 @@ devre dışı kalır.
 
 ## Google Drive kurulumu
 
+Dosyalar Drive'a iki yoldan gidebilir. Sonuç aynıdır; kurulum zorluğu ve
+davranış farkı vardır:
+
+| | **Drive masaüstü uygulaması** | **Doğrudan yükleme (API)** |
+|---|---|---|
+| Kurulum | Uygulamayı kur, hesabınla giriş yap (~3 dk) | Google Cloud projesi + OAuth dosyası (~5 dk, teknik) |
+| Yükleyen | Google'ın kendi uygulaması | Docvera'nın kendi kuyruğu |
+| Silinen dosya | Drive'dan da silinir — **ayna** | Bulut kopyası kalır — **tek yönlü** |
+| Yükleme durumu | Drive'ın kendi simgesinden | Docvera durum çubuğunda, yeniden deneme ile |
+| Çok şubeli kurulum | Her makine diğerlerinin dosyalarını da indirir | Yalnızca yükleme yapılır |
+
+Tek tarama istasyonunda **Drive masaüstü uygulaması** yeter ve hiçbir teknik
+adım gerektirmez. Kasiyerin dosya silebildiği ya da bulutta bozulmayacak bir
+kopya istenen kurulumlarda **API** yolu seçilmelidir: eşitleme yedek değildir.
+
+### Drive masaüstü uygulamasıyla eşitleme
+
+1. [Drive masaüstü uygulamasını](https://www.google.com/drive/download/) kurup
+   Google hesabınızla giriş yapın.
+2. Ayarlar → **Google Drive** → **Drive klasörünü bul ve kur**.
+
+Program eşitlenen klasörü kendisi bulur (ev dizini ve sanal sürücü harfleri
+taranır; klasör adının İngilizce mi Türkçe mi olduğu fark etmez), arşiv kökünü
+oradaki `DOCVERA ARSIV` klasörüne alır ve kendi yüklemesini kapatır — aynı
+dosyalar iki kez yüklenmesin diye. Klasör bulunamazsa indirme sayfası açılır
+veya klasör elle gösterilebilir.
+
+Bu yol seçildiğinde durum çubuğu `Drive: klasör eşitlemesi açık` yazar; yükleme
+ilerlemesi Drive uygulamasının kendi simgesinden izlenir.
+
+### Doğrudan yükleme (API)
+
 Uygulama Drive'a **`drive.file`** kapsamıyla bağlanır: yalnızca kendi oluşturduğu
 dosyalara erişir, kullanıcının Drive'ındaki başka hiçbir şeye dokunamaz.
 
@@ -599,7 +631,8 @@ app/
 ├── drive/
 │   ├── auth.py          OAuth + DPAPI ile şifreli jeton, istemci doğrulama
 │   ├── client.py        Klasör ağacı (önbellekli) + dosya yükleme
-│   └── queue.py         Arka plan kuyruğu + üstel geri çekilme
+│   ├── queue.py         Arka plan kuyruğu + üstel geri çekilme
+│   └── yerel_esitleme.py  Drive masaüstü uygulamasının klasörünü bulur
 └── ui/                  PySide6 arayüzü
     ├── guncelleme_dialog.py  Sürüm penceresi + otomatik denetim
     └── kurulum_dialog.py     Eksik bileşen penceresi

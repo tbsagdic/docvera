@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QThread, QTimer, Signal
+from PySide6.QtCore import QThread, QTimer, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -78,7 +80,10 @@ class AyarlarDiyalogu(QDialog):
             self._sekme(self._arsiv_kutusu(), self._tarama_kutusu()), "Genel"
         )
         sekmeler.addTab(self._sekme(self._ocr_kutusu()), "Kimlik Okuma")
-        sekmeler.addTab(self._sekme(self._drive_kutusu()), "Google Drive")
+        api_kutusu = self._drive_kutusu()  # esitleme kutusu buna baglanir
+        sekmeler.addTab(
+            self._sekme(self._esitleme_kutusu(), api_kutusu), "Google Drive"
+        )
         sekmeler.addTab(self._sekme(self._guncelleme_kutusu()), "Güncelleme")
         duzen.addWidget(sekmeler)
 
@@ -242,6 +247,150 @@ class AyarlarDiyalogu(QDialog):
 
         KurulumDiyalogu(self.ayarlar, kalan, self).exec()
         self._ocr_durumunu_yaz()
+
+    def _esitleme_kutusu(self) -> QGroupBox:
+        """Drive masaustu uygulamasiyla esitleme secenegi.
+
+        Arsivi Drive'in esitledigi klasore yazmak API kurulumunun tamamini
+        (Google Cloud projesi, OAuth dosyasi, uygulamayi yayinlama) ortadan
+        kaldirir; tek makinede calisan kurulumlarin cogu icin dogru secim
+        budur. Ayna oldugu - yedek olmadigi - acikca yaziliyor.
+        """
+        kutu = QGroupBox("Kolay yol: Drive masaüstü uygulaması")
+        duzen = QVBoxLayout(kutu)
+
+        aciklama = QLabel(
+            "Google'ın <b>Drive masaüstü uygulaması</b> kuruluysa arşiv "
+            "doğrudan eşitlenen klasöre yazılabilir; yüklemeyi Google'ın kendi "
+            "uygulaması yapar. Google Cloud projesi, OAuth dosyası ve "
+            "yetkilendirme gerekmez.<br>"
+            "<b>Dikkat:</b> Eşitleme bir aynadır, yedek değildir - yerelden "
+            "silinen dosya Drive'dan da silinir."
+        )
+        aciklama.setWordWrap(True)
+        aciklama.setStyleSheet("font-size: 11px;")
+
+        self.esitleme_dugmesi = QPushButton("Drive klasörünü bul ve kur")
+        self.esitleme_dugmesi.setToolTip(
+            "Arşiv kök klasörünü Drive'ın eşitlediği klasöre taşır"
+        )
+        self.esitleme_dugmesi.clicked.connect(self._esitlemeyi_kur)
+
+        satir = QHBoxLayout()
+        satir.addWidget(self.esitleme_dugmesi)
+        satir.addStretch(1)
+
+        self.esitleme_durumu = QLabel()
+        self.esitleme_durumu.setWordWrap(True)
+        self.esitleme_durumu.setStyleSheet("font-size: 11px;")
+
+        duzen.addWidget(aciklama)
+        duzen.addLayout(satir)
+        duzen.addWidget(self.esitleme_durumu)
+
+        # Kok klasor elle de degistirilebilir; durum ikisini de izlemeli
+        self.kok_alani.textChanged.connect(lambda _: self._esitleme_durumunu_yaz())
+        self.drive_kutusu.toggled.connect(lambda _: self._esitleme_durumunu_yaz())
+        self._esitleme_durumunu_yaz()
+        return kutu
+
+    def _esitleme_durumunu_yaz(self) -> None:
+        from app.drive import yerel_esitleme
+
+        klasor = yerel_esitleme.esitlenen_klasor(self.kok_alani.text())
+        if klasor is None:
+            self.esitleme_durumu.setText(
+                "Arşiv şu an eşitlenen bir klasörde değil."
+            )
+            self.esitleme_durumu.setStyleSheet("font-size: 11px; color: #888;")
+        elif self.drive_kutusu.isChecked():
+            # Iki yol ayni anda acikken her dosya iki kez yuklenir
+            self.esitleme_durumu.setText(
+                f"Arşiv Drive klasöründe ({klasor}) ama Docvera'nın kendi "
+                "yüklemesi de açık - aynı dosyalar iki kez yüklenir. "
+                "Yukarıdaki otomatik yükleme kutusunu kapatın."
+            )
+            self.esitleme_durumu.setStyleSheet("font-size: 11px; color: #b8860b;")
+        else:
+            self.esitleme_durumu.setText(
+                f"Arşiv Drive klasörüne yazılıyor: {klasor}\n"
+                "Yüklemeyi Drive masaüstü uygulaması yapıyor."
+            )
+            self.esitleme_durumu.setStyleSheet("font-size: 11px; color: #1f6f43;")
+
+    def _esitlemeyi_kur(self) -> None:
+        """Drive klasorunu bulur ve arsiv kokunu oraya alir."""
+        from app.drive import yerel_esitleme
+
+        klasorler = yerel_esitleme.drive_klasorleri_bul()
+        if not klasorler:
+            secilen = self._esitleme_klasoru_sor()
+            if secilen is None:
+                return
+            klasorler = [secilen]
+
+        if len(klasorler) == 1:
+            klasor = klasorler[0]
+        else:
+            secim, tamam = QInputDialog.getItem(
+                self,
+                "Drive klasörü",
+                "Arşiv hangi Drive klasörüne yazılsın?",
+                [str(k) for k in klasorler],
+                0,
+                False,
+            )
+            if not tamam:
+                return
+            klasor = Path(secim)
+
+        hedef = yerel_esitleme.arsiv_hedefi(klasor)
+        self.kok_alani.setText(str(hedef))
+        self.drive_kutusu.setChecked(False)  # ayni dosya iki kez yuklenmesin
+        self._esitleme_durumunu_yaz()
+        QMessageBox.information(
+            self,
+            "Eşitleme kuruldu",
+            f"Arşiv artık şuraya yazılacak:\n{hedef}\n\n"
+            "Drive masaüstü uygulaması bu klasörü kendiliğinden yükler. "
+            "Docvera'nın kendi yüklemesi kapatıldı, aynı dosyalar iki kez "
+            "yüklenmesin diye.\n\n"
+            "Kaydet düğmesine basmayı unutmayın.",
+        )
+
+    def _esitleme_klasoru_sor(self) -> Path | None:
+        """Drive klasoru bulunamadiginda ne yapilacagini sorar.
+
+        Uygulama kurulu degilse indirme sayfasi acilir; kurulu ama alisilmadik
+        bir yere esitleniyorsa kullanici klasoru elle gosterebilir.
+        """
+        from app.drive import yerel_esitleme
+
+        kutu = QMessageBox(self)
+        kutu.setWindowTitle("Drive klasörü bulunamadı")
+        kutu.setText(
+            "Bu bilgisayarda Drive masaüstü uygulamasının eşitlediği bir "
+            "klasör bulunamadı.\n\nUygulama kurulu değilse indirip Google "
+            "hesabınızla giriş yapın, sonra buraya dönün."
+        )
+        indir = kutu.addButton(
+            "İndirme sayfasını aç", QMessageBox.ButtonRole.AcceptRole
+        )
+        elle = kutu.addButton(
+            "Klasörü elle seç...", QMessageBox.ButtonRole.ActionRole
+        )
+        kutu.addButton("Vazgeç", QMessageBox.ButtonRole.RejectRole)
+        kutu.exec()
+
+        if kutu.clickedButton() is indir:
+            QDesktopServices.openUrl(QUrl(yerel_esitleme.INDIRME_ADRESI))
+            return None
+        if kutu.clickedButton() is elle:
+            secilen = QFileDialog.getExistingDirectory(
+                self, "Drive'ın eşitlediği klasörü seçin", str(Path.home())
+            )
+            return Path(secilen) if secilen else None
+        return None
 
     def _drive_kutusu(self) -> QGroupBox:
         kutu = QGroupBox("Google Drive")

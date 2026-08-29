@@ -117,6 +117,12 @@ class DriveRehberDiyalogu(QDialog):
             "Bu adımlar <b>bir kez</b> yapılır ve yaklaşık 5 dakika sürer. "
             "Sonrasında bu bilgisayarda bir daha gerekmez.<br><br>"
             "Her adımdaki düğme ilgili Google sayfasını tarayıcınızda açar."
+            "<br><br>"
+            "<b>Daha kolayı var:</b> Google'ın <b>Drive masaüstü uygulaması</b> "
+            "kuruluysa aşağıdaki adımların hiçbirine gerek yok — bu pencereyi "
+            "kapatıp <b>Drive klasörünü bul ve kur</b> düğmesini kullanın. "
+            "Tek farkı, eşitlemenin ayna olmasıdır: yerelden silinen dosya "
+            "Drive'dan da silinir."
         )
         giris.setWordWrap(True)
         giris.setStyleSheet("font-size: 12px; padding: 4px;")

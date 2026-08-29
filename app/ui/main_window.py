@@ -138,6 +138,8 @@ class AnaPencere(QMainWindow):
         self._kisayollari_kur()
 
         self.cihazlari_yenile()
+        self._esitleme_onbellek_kok = ""
+        self._esitleme_onbellek = None
         self._durum_zamanlayici = QTimer(self)
         self._durum_zamanlayici.timeout.connect(self._drive_durumunu_yenile)
         self._durum_zamanlayici.start(3000)
@@ -1183,10 +1185,30 @@ class AnaPencere(QMainWindow):
 
     # --- Drive durumu -----------------------------------------------------
 
+    def _esitlenen_klasor(self):
+        """Arsiv Drive'in esitledigi bir klasorde mi?
+
+        Durum satiri saniyede bir yenileniyor; tarama sonucu kok klasor
+        degismedikce onbellekten okunur.
+        """
+        kok = self.ayarlar.kok_klasor
+        if kok != self._esitleme_onbellek_kok:
+            from app.drive.yerel_esitleme import esitlenen_klasor
+
+            self._esitleme_onbellek_kok = kok
+            self._esitleme_onbellek = esitlenen_klasor(kok)
+        return self._esitleme_onbellek
+
     def _drive_durumunu_yenile(self) -> None:
         if not self.ayarlar.drive_etkin:
-            self.durum_etiketi.setText("Google Drive: kapalı")
-            self.durum_etiketi.setStyleSheet("color: #888;")
+            # Yukleme kapali gorunse de arsiv Drive klasorundeyse dosyalar
+            # Drive masaustu uygulamasiyla yukleniyor demektir
+            if self._esitlenen_klasor():
+                self.durum_etiketi.setText("Drive: klasör eşitlemesi açık")
+                self.durum_etiketi.setStyleSheet("color: #1f6f43;")
+            else:
+                self.durum_etiketi.setText("Google Drive: kapalı")
+                self.durum_etiketi.setStyleSheet("color: #888;")
             return
 
         ozet = self.vt.kuyruk_ozeti()
