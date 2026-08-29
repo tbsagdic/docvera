@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
 ![Python](https://img.shields.io/badge/python-3.10%20--%203.14-3776AB)
 ![Arayüz](https://img.shields.io/badge/aray%C3%BCz-PySide6-41CD52)
-![Testler](https://img.shields.io/badge/testler-249%20ge%C3%A7iyor-2EA043)
+![Testler](https://img.shields.io/badge/testler-250%20ge%C3%A7iyor-2EA043)
 
 </div>
 
@@ -103,10 +103,13 @@ Bunun için genel OCR değil, kimliğin **arka yüzündeki MRZ** (makine okunabi
 alan) okunur:
 
 ```
-I<TURA47D431655<15526562956<<<
-9711194M3407079TUR<<<<<<<<<<<2
-BASLIOGLU<<ONUR<<<<<<<<<<<<<<<
+I<TURA123456784<10000000146<<<
+8503057M3001019TUR<<<<<<<<<<<2
+OZDEMIR<<ALI<<<<<<<<<<<<<<<<<<
 ```
+
+> Buradaki MRZ gerçek bir kimliğe ait değildir: kontrol haneleri hesaplanarak
+> üretilmiş sentetik bir örnektir. Depoda hiçbir yerde gerçek kimlik verisi tutulmaz.
 
 MRZ yalnızca `A-Z`, `0-9` ve `<` içerir **ve içinde kontrol haneleri vardır**.
 Bu yüzden okumanın doğruluğu tahmin edilmez, **hesaplanır**.
@@ -151,8 +154,8 @@ Ek korumalar:
 - Sayfada ne MRZ ne de yeterli kanıtlı bir TC varsa hiçbir şey doldurulmaz.
 - Doğru okunmuş MRZ satırları, sayfadaki alakasız bir metinle eşleşip forma
   çöp isim yazamaz (ad satırı ayrıca şekil denetiminden geçer).
-- MRZ'deki ad ASCII'dir (`BASLIOGLU`). Kartın ön yüzü Türkçe OCR ile okunup
-  `BAŞLIOĞLU` yazımı geri kazanılmaya çalışılır; yalnızca ASCII'ye
+- MRZ'deki ad ASCII'dir (`OZDEMIR`). Kartın ön yüzü Türkçe OCR ile okunup
+  `ÖZDEMİR` yazımı geri kazanılmaya çalışılır; yalnızca ASCII'ye
   indirgendiğinde MRZ ile birebir aynı olan sonuç kabul edilir.
 
 ### Tesseract kurulumu — uygulama kendisi yapar

@@ -3,9 +3,12 @@
 Yeni TC kimlik kartinin arkasindaki 3 x 30 karakterlik makine okunabilir alan
 (MRZ) ICAO 9303 TD1 standardindadir:
 
-    I<TURA47D431655<15526562956<<<
-    9711194M3407079TUR<<<<<<<<<<<2
-    BASLIOGLU<<ONUR<<<<<<<<<<<<<<<
+    I<TURA123456784<10000000146<<<
+    8503057M3001019TUR<<<<<<<<<<<2
+    OZDEMIR<<ALI<<<<<<<<<<<<<<<<<<
+
+(Ornek sentetiktir: kontrol haneleri hesaplanarak uretilmistir, gercek bir
+kimlige ait degildir.)
 
 Bu alan OCR icin ideal: yalnizca A-Z, 0-9 ve '<' karakterlerini icerir VE
 icinde kontrol haneleri vardir. Kontrol haneleri sayesinde okumanin dogru

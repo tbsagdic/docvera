@@ -8,7 +8,7 @@ Yaklasim - "hatasiz" olma sozu buraya dayanir:
    esikleme, dondurme) yeniden denenir.
 3. Hicbir denemede kontroller tutmazsa alanlar BOS BIRAKILIR ve kasiyerden
    elle girmesi istenir. Dogrulanmamis veri forma asla yazilmaz.
-4. MRZ ASCII oldugu icin ad 'BASLIOGLU' seklinde gelir. Turkce harfleri
+4. MRZ ASCII oldugu icin ad 'OZDEMIR' seklinde gelir. Turkce harfleri
    (Ş, Ğ, İ) geri kazanmak icin kimligin on yuzu Turkce OCR ile okunur ve
    sonuc MRZ'ye karsi dogrulanir: ASCII'ye indirgendiginde MRZ ile ayni
    degilse kabul edilmez.
@@ -66,7 +66,7 @@ class OkumaSonucu:
 
 
 def ascii_katla(metin: str) -> str:
-    """Turkce harfleri ASCII'ye indirger: 'BAŞLIOĞLU' -> 'BASLIOGLU'."""
+    """Turkce harfleri ASCII'ye indirger: 'ÖZDEMİR' -> 'OZDEMIR'."""
     return metin.upper().translate(_ASCII_KATLAMA)
 
 
@@ -267,7 +267,7 @@ def _turkce_adi_uygula(
 ) -> bool:
     """MRZ'deki ASCII ada Turkce harfleri geri kazandirmayi dener.
 
-    MRZ 'BASLIOGLU' der; kartin on yuzunde 'BAŞLIOĞLU' yazar. Turkce yazim
+    MRZ 'OZDEMIR' der; kartin on yuzunde 'ÖZDEMİR' yazar. Turkce yazim
     yalnizca su kosullarda kabul edilir:
 
       1. Kelime MRZ SATIRINDAN gelmiyor. Turkce OCR modeli MRZ'deki 'I'
