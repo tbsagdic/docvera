@@ -1,0 +1,10 @@
+#!/bin/sh
+# Surum numarasini bu commit'in sira numarasina esitler: 1.0.<commit sayisi>
+set -e
+if [ -x ".venv/Scripts/python.exe" ]; then
+    PY=".venv/Scripts/python.exe"
+else
+    PY="python"
+fi
+"$PY" tools/surum_yaz.py --sonraki >/dev/null
+git add app/surum.py
