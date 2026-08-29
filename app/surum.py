@@ -3,5 +3,5 @@
 tools/surum_yaz.py tarafindan git commit sayisindan uretilir.
 """
 
-COMMIT_SAYISI = 14
-SURUM = "1.0.14"
+COMMIT_SAYISI = 15
+SURUM = "1.0.15"

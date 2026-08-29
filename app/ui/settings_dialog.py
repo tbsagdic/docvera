@@ -19,7 +19,9 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
+    QTabWidget,
     QVBoxLayout,
+    QWidget,
 )
 
 from app.config import Ayarlar, veri_klasoru
@@ -70,11 +72,15 @@ class AyarlarDiyalogu(QDialog):
         self.setMinimumWidth(560)
 
         duzen = QVBoxLayout(self)
-        duzen.addWidget(self._arsiv_kutusu())
-        duzen.addWidget(self._tarama_kutusu())
-        duzen.addWidget(self._ocr_kutusu())
-        duzen.addWidget(self._drive_kutusu())
-        duzen.addWidget(self._guncelleme_kutusu())
+
+        sekmeler = QTabWidget()
+        sekmeler.addTab(
+            self._sekme(self._arsiv_kutusu(), self._tarama_kutusu()), "Genel"
+        )
+        sekmeler.addTab(self._sekme(self._ocr_kutusu()), "Kimlik Okuma")
+        sekmeler.addTab(self._sekme(self._drive_kutusu()), "Google Drive")
+        sekmeler.addTab(self._sekme(self._guncelleme_kutusu()), "Güncelleme")
+        duzen.addWidget(sekmeler)
 
         dugmeler = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
@@ -86,6 +92,16 @@ class AyarlarDiyalogu(QDialog):
         duzen.addWidget(dugmeler)
 
     # --- Bolumler ---------------------------------------------------------
+
+    @staticmethod
+    def _sekme(*kutular: QGroupBox) -> QWidget:
+        """Ayar gruplarini ekrana sigan ortak bir sekme sayfasina yerlestirir."""
+        sayfa = QWidget()
+        duzen = QVBoxLayout(sayfa)
+        for kutu in kutular:
+            duzen.addWidget(kutu)
+        duzen.addStretch(1)
+        return sayfa
 
     def _arsiv_kutusu(self) -> QGroupBox:
         kutu = QGroupBox("Arşiv")
