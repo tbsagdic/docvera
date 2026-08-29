@@ -48,7 +48,7 @@ from app.validation import (
     tc_normalize,
 )
 
-KUCUK_RESIM = QSize(110, 150)
+KUCUK_RESIM = QSize(72, 100)
 
 
 class TaslakSayfa:
@@ -245,10 +245,10 @@ class AnaPencere(QMainWindow):
         self.sayfa_listesi = QListWidget()
         self.sayfa_listesi.setViewMode(QListWidget.ViewMode.IconMode)
         self.sayfa_listesi.setIconSize(KUCUK_RESIM)
-        self.sayfa_listesi.setGridSize(QSize(130, 190))
+        self.sayfa_listesi.setGridSize(QSize(90, 134))
         self.sayfa_listesi.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.sayfa_listesi.setMovement(QListWidget.Movement.Static)
-        self.sayfa_listesi.setSpacing(6)
+        self.sayfa_listesi.setSpacing(4)
 
         self.sil_dugmesi = QPushButton("Seçili sayfayı sil")
         self.sil_dugmesi.clicked.connect(self.secili_sayfayi_sil)
