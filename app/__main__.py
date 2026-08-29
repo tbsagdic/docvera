@@ -10,10 +10,12 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from app.config import UYGULAMA_ADI, UYGULAMA_SURUMU, Ayarlar, veri_klasoru
 from app.db import Veritabani
+from app.varliklar import SIMGE, varlik_yolu
 
 
 def _gunlugu_kur() -> None:
@@ -65,6 +67,8 @@ def main() -> int:
     uygulama = QApplication(sys.argv)
     uygulama.setApplicationName(UYGULAMA_ADI)
     uygulama.setApplicationVersion(UYGULAMA_SURUMU)
+    # Tum pencere ve diyaloglar bu simgeyi devralir
+    uygulama.setWindowIcon(QIcon(str(varlik_yolu(SIMGE))))
 
     ayarlar = Ayarlar.yukle()
     sorunlar = ayarlar.dogrula()

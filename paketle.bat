@@ -10,6 +10,8 @@ if exist "credentials.json" (
     echo [+] credentials.json bulundu, pakete gomulecek.
     .venv\Scripts\python.exe -m PyInstaller --onedir --noconfirm --windowed ^
         --name Docvera --paths . ^
+        --icon "app\varliklar\docvera-simge.ico" ^
+        --add-data "app\varliklar;app\varliklar" ^
         --add-data "credentials.json;." ^
         app\__main__.py
 ) else (
@@ -19,6 +21,8 @@ if exist "credentials.json" (
     echo.
     .venv\Scripts\python.exe -m PyInstaller --onedir --noconfirm --windowed ^
         --name Docvera --paths . ^
+        --icon "app\varliklar\docvera-simge.ico" ^
+        --add-data "app\varliklar;app\varliklar" ^
         app\__main__.py
 )
 

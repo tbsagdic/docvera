@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
+  <title id="title">DocVera logo</title>
+  <desc id="desc">A document verification symbol beside the DocVera wordmark.</desc>
+  <defs>
+    <linearGradient id="scan" x1="0" x2="1">
+      <stop offset="0" stop-color="#33E6D1"/>
+      <stop offset="1" stop-color="#00AFA7"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17CDBB"/>
+      <stop offset="1" stop-color="#008F91"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#002B55" flood-opacity=".15"/>
+    </filter>
+    <filter id="glow" x="-20%" y="-300%" width="140%" height="700%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <g transform="translate(58 38)">
+    <!-- framing corners -->
+    <path d="M82 116V86c0-29 23-52 52-52h40M330 34h40c29 0 52 23 52 52v30" fill="none" stroke="#0966B7" stroke-width="16" stroke-linecap="round"/>
+    <path d="M82 326v30c0 29 23 52 52 52h40M330 408h40c29 0 52-23 52-52v-30" fill="none" stroke="#009C96" stroke-width="16" stroke-linecap="round"/>
+
+    <!-- document -->
+    <g filter="url(#shadow)">
+      <path d="M144 72h142l76 76v216c0 22-18 40-40 40H144c-22 0-40-18-40-40V112c0-22 18-40 40-40Z" fill="#FFF" stroke="#063A72" stroke-width="9" stroke-linejoin="round"/>
+      <path d="M286 72v56c0 11 9 20 20 20h56" fill="#D9F8F4" stroke="#063A72" stroke-width="9" stroke-linejoin="round"/>
+    </g>
+
+    <!-- profile and text -->
+    <circle cx="165" cy="151" r="22" fill="#0966B7"/>
+    <path d="M128 207c2-28 17-42 37-42s35 14 37 42Z" fill="#0966B7"/>
+    <path d="M232 165h66M232 201h83M140 284h158M140 317h112" fill="none" stroke="#AFC2D2" stroke-width="13" stroke-linecap="round"/>
+    <g fill="#355E7D" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="2">
+      <text x="140" y="250">ID • VERIFIED</text>
+    </g>
+
+    <!-- scanner -->
+    <rect x="54" y="232" width="404" height="14" rx="7" fill="#22DDCB" opacity=".35" filter="url(#glow)"/>
+    <rect x="54" y="232" width="404" height="12" rx="6" fill="url(#scan)"/>
+    <circle cx="66" cy="238" r="7" fill="#B8FFF5"/>
+
+    <!-- verification shield -->
+    <path d="M233 324c39 0 69-20 69-20s30 20 69 20v51c0 55-42 85-69 98-27-13-69-43-69-98Z" fill="url(#shield)" stroke="#FFF" stroke-width="12" stroke-linejoin="round"/>
+    <path d="m270 375 22 23 46-52" fill="none" stroke="#FFF" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- wordmark -->
+  <g transform="translate(560 167)">
+    <text x="0" y="160" font-family="Inter, Avenir Next, Segoe UI, Arial, sans-serif" font-size="176" font-weight="750" letter-spacing="-9" fill="#042B55">Doc</text>
+    <text x="292" y="160" font-family="Inter, Avenir Next, Segoe UI, Arial, sans-serif" font-size="176" font-weight="520" letter-spacing="-9" fill="#009F99">Vera</text>
+    <path d="M310 188H767" stroke="#A6DAD7" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+    <text x="7" y="222" font-family="Inter, Avenir Next, Segoe UI, Arial, sans-serif" font-size="26" font-weight="650" letter-spacing="8" fill="#55758F">TRUSTED DOCUMENTS</text>
+  </g>
+</svg>

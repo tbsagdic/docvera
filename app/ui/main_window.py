@@ -47,8 +47,11 @@ from app.validation import (
     tc_hata_mesaji,
     tc_normalize,
 )
+from app.varliklar import YATAY_LOGO, varlik_yolu
 
 KUCUK_RESIM = QSize(72, 100)
+# Yatay logo 1600x520 oraninda; yukseklik verilip genislik oranla belirlenir
+LOGO_BOYUTU = QSize(222, 72)
 
 
 class TaslakSayfa:
@@ -89,6 +92,7 @@ class AnaPencere(QMainWindow):
         self._durum_zamanlayici.timeout.connect(self._drive_durumunu_yenile)
         self._durum_zamanlayici.start(3000)
         self._drive_durumunu_yenile()
+        self._guncellemeyi_kur()
 
     # --- Arayuz kurulumu --------------------------------------------------
 
@@ -98,6 +102,7 @@ class AnaPencere(QMainWindow):
         ana_duzen = QHBoxLayout(merkez)
 
         sol = QVBoxLayout()
+        sol.addWidget(self._logo_seridi())
         sol.addWidget(self._musteri_kutusu())
         sol.addWidget(self._tarayici_kutusu())
         sol.addWidget(self._tara_dugmesi())
@@ -112,6 +117,15 @@ class AnaPencere(QMainWindow):
 
         self.durum_etiketi = QLabel()
         self.statusBar().addPermanentWidget(self.durum_etiketi)
+
+    def _logo_seridi(self) -> QLabel:
+        """Sol panelin ustundeki marka seridi."""
+        etiket = QLabel()
+        # QIcon SVG'yi istenen boyutta yeniden rasterler: buyutup kucultmeye
+        # gore keskin kalir, en-boy orani da korunur.
+        etiket.setPixmap(QIcon(str(varlik_yolu(YATAY_LOGO))).pixmap(LOGO_BOYUTU))
+        etiket.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        return etiket
 
     def _musteri_kutusu(self) -> QGroupBox:
         kutu = QGroupBox("Müşteri Bilgileri")
@@ -282,6 +296,11 @@ class AnaPencere(QMainWindow):
             "Yüklenemeyen dosyaları yeniden dene", self.yuklemeleri_yeniden_dene
         )
 
+        yardim = self.menuBar().addMenu("&Yardım")
+        yardim.addAction("Güncellemeleri denetle...", self.guncellemeleri_denetle)
+        yardim.addSeparator()
+        yardim.addAction("Hakkında", self.hakkinda)
+
     def _kisayollari_kur(self) -> None:
         QShortcut(QKeySequence("F5"), self, self.tara)
         QShortcut(QKeySequence("Ctrl+S"), self, self.kaydet)
@@ -328,6 +347,73 @@ class AnaPencere(QMainWindow):
             5000,
         )
         self._drive_durumunu_yenile()
+
+    # --- Guncelleme -------------------------------------------------------
+
+    def _guncellemeyi_kur(self) -> None:
+        """Guncelleme denetleyicisini kurar ve acilis islerini yapar."""
+        from app.ui.guncelleme_dialog import GuncellemeDenetleyici
+
+        self.guncelleme = GuncellemeDenetleyici(
+            self.ayarlar, self, engel=self._guncelleme_engeli
+        )
+        self.guncelleme.bilgi.connect(self._guncelleme_bilgisi)
+        self._onceki_kurulumu_bildir()
+        self.guncelleme.acilista_denetle()
+
+    def guncellemeleri_denetle(self) -> None:
+        """Yardim menusundeki elle denetim."""
+        self.guncelleme.denetle(sessiz=False)
+
+    def _guncelleme_bilgisi(self, mesaj: str, sure: int) -> None:
+        if mesaj:
+            self.statusBar().showMessage(mesaj, sure)
+        else:
+            self.statusBar().clearMessage()
+
+    def _guncelleme_engeli(self) -> str:
+        """Kurulum su an sakincaliysa gerekcesini dondurur.
+
+        Kurulum uygulamayi kapatir; kaydedilmemis taranmis sayfa varsa bu
+        sayfalar silinir. Kullaniciyi bu secimle karsilastirmak yerine
+        guncellemeyi erteletmek daha guvenli.
+        """
+        if self.taslaklar:
+            return (
+                f"{len(self.taslaklar)} taranmış sayfa henüz kaydedilmedi. "
+                "Güncelleme uygulamayı kapatacağı için önce kaydı tamamlayın, "
+                "sonra tekrar deneyin."
+            )
+        return ""
+
+    def _onceki_kurulumu_bildir(self) -> None:
+        """Bir onceki oturumda baslatilan kurulumun sonucunu gosterir."""
+        from app.guncelleme import eski_dosyalari_temizle, sonucu_al
+
+        durum, mesaj = sonucu_al()
+        if durum == "tamam":
+            self.statusBar().showMessage(mesaj, 10000)
+            eski_dosyalari_temizle()  # indirilen paket artik gereksiz
+        elif durum == "hata":
+            QMessageBox.warning(
+                self,
+                "Güncelleme tamamlanamadı",
+                f"{mesaj}\n\nÖnceki sürüm çalışmaya devam ediyor. "
+                "Yardım menüsünden yeniden deneyebilirsiniz.",
+            )
+
+    def hakkinda(self) -> None:
+        from app.config import UYGULAMA_SURUMU
+        from app.guncelleme import DEPO
+
+        QMessageBox.about(
+            self,
+            "Docvera hakkında",
+            f"<b>Docvera</b> {UYGULAMA_SURUMU}<br><br>"
+            "Müşteri evrağı tarama ve arşivleme uygulaması.<br><br>"
+            f"Kaynak kod ve sürümler:<br>"
+            f"<a href='https://github.com/{DEPO}'>github.com/{DEPO}</a>",
+        )
 
     # --- Cihaz yonetimi ---------------------------------------------------
 
