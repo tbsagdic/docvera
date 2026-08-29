@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
 ![Python](https://img.shields.io/badge/python-3.10%20--%203.14-3776AB)
 ![Arayüz](https://img.shields.io/badge/aray%C3%BCz-PySide6-41CD52)
-![Testler](https://img.shields.io/badge/testler-250%20ge%C3%A7iyor-2EA043)
+![Testler](https://img.shields.io/badge/testler-269%20ge%C3%A7iyor-2EA043)
 
 </div>
 
@@ -222,15 +222,53 @@ Bunun iki önemli sonucu var:
 > `drive.file` hassas kapsam olmadığı için Üretim'e almak Google doğrulama
 > sürecini gerektirmez.
 
-### Adımlar
+### İki bağlantı yöntemi
 
-1. [Google Cloud Console](https://console.cloud.google.com/) → yeni proje
-2. **API'ler ve Servisler → Kitaplık** → *Google Drive API*'yi etkinleştir
-3. **OAuth izin ekranı** → Harici → uygulama bilgilerini doldur → **Üretim'e al**
-4. **Kimlik bilgileri → OAuth istemci kimliği → Masaüstü uygulaması** → JSON indir
-5. İndirilen dosyayı `credentials.json` adıyla şuraya kopyala:
-   `%APPDATA%\Docvera\credentials.json`
-6. Uygulamada **Araçlar → Ayarlar → Google Drive'a bağlan**
+Ayarlar → Google Drive sekmesinde iki seçenek sunulur.
+
+#### 1) Docvera ile bağlan — önerilen
+
+Kullanıcı **Google Drive'a bağlan** düğmesine basar, açılan Google sayfasından
+hesabını seçip izin verir. Başka hiçbir işlem yok.
+
+Bunun çalışması için OAuth istemci dosyasının **uygulamaya gömülü** olması
+gerekir. `paketle.bat`, proje kökünde `credentials.json` görürse pakete otomatik
+gömer; görmezse uyarır ve Drive'sız paket üretir.
+
+> Bu, geliştirici tarafında **bir kez** yapılır. Sonrasında uygulama kaç
+> bilgisayara kurulursa kurulsun son kullanıcı Google Cloud'u hiç görmez.
+
+Masaüstü uygulamalarında istemci gizli anahtarı zaten gizli tutulamaz; Google'ın
+`installed app` akışı buna göre tasarlanmıştır. Güvenlik, kullanıcının tarayıcıda
+verdiği onaya dayanır — anahtarın gizliliğine değil.
+
+#### 2) Kendi Google hesabımla bağlan
+
+Arşivin kendi Google projesi üzerinden gitmesini isteyen kullanıcılar için.
+Ayarlar → Google Drive → **Nasıl yapılır?** düğmesi adım adım anlatan bir pencere
+açar; her adımın Google sayfasını tek tuşla açar ve adımlar panoya kopyalanabilir.
+
+Kullanıcı indirdiği JSON dosyasını **Dosya seç** ile gösterir. Dosyayı yeniden
+adlandırmasına veya bir klasöre kopyalamasına gerek yoktur — program gerekeni
+kendisi yapar ve **dosyanın doğru türde olduğunu kontrol eder**:
+
+| Durum | Sonuç |
+|---|---|
+| Masaüstü istemcisi | Kabul edilir |
+| **Web** uygulaması istemcisi | Reddedilir, "Masaüstü uygulaması seçmelisiniz" denir |
+| Bozuk / alakasız JSON | Reddedilir, nedeni söylenir |
+| `client_secret` eksik | Reddedilir, hangi alanın eksik olduğu söylenir |
+
+Web istemcisi seçmek Google Cloud'da en sık yapılan hatadır ve normalde hatası
+ancak yetkilendirme ekranında, anlaşılmaz bir mesajla ortaya çıkar. Burada dosya
+seçilir seçilmez yakalanır.
+
+**Kaldır** düğmesi kendi projeyi kaldırıp uygulamayla gelen bağlantıya döndürür.
+
+Kendi projeye geçildiğinde veya kaldırıldığında eski yetkilendirme jetonu
+silinir — başka bir projeye ait jeton geçersizdir.
+
+---
 
 Yenileme jetonu Windows **DPAPI** ile şifrelenip `token.bin` olarak saklanır —
 düz metin jeton diskte durmaz ve yalnızca aynı Windows kullanıcısı aynı makinede
@@ -543,7 +581,7 @@ app/
 │   ├── denetim.py       Eksik dış bileşen tespiti (Tesseract, dil paketi)
 │   └── tesseract.py     winget ya da doğrudan indirme ile otomatik kurulum
 ├── drive/
-│   ├── auth.py          OAuth + DPAPI ile şifreli jeton
+│   ├── auth.py          OAuth + DPAPI ile şifreli jeton, istemci doğrulama
 │   ├── client.py        Klasör ağacı (önbellekli) + dosya yükleme
 │   └── queue.py         Arka plan kuyruğu + üstel geri çekilme
 └── ui/                  PySide6 arayüzü

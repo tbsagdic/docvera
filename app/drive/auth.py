@@ -104,6 +104,85 @@ def istemci_hazir_mi(veri_klasoru: Path) -> bool:
     return istemci_yolu(veri_klasoru).is_file()
 
 
+def kullanici_istemcisi_var_mi(veri_klasoru: Path) -> bool:
+    """Kullanici kendi Google projesinin dosyasini yuklemis mi?"""
+    return (Path(veri_klasoru) / ISTEMCI_DOSYASI).is_file()
+
+
+def istemci_dosyasini_dogrula(yol: Path) -> str:
+    """Secilen dosyanin gecerli bir MASAUSTU OAuth istemcisi oldugunu dogrular.
+
+    Google Cloud Console'da en sik yapilan hata 'Web uygulamasi' turunu
+    secmektir; o dosya bu akista calismaz ve hatasi ancak yetkilendirme
+    ekraninda, anlasilmaz bir mesajla ortaya cikar. Burada onden yakalanir.
+
+    Basarili olursa istemci kimligini dondurur.
+    """
+    yol = Path(yol)
+    try:
+        veri = json.loads(yol.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as exc:
+        raise KimlikHatasi(f"Dosya okunamadı: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise KimlikHatasi(
+            "Bu dosya geçerli bir JSON değil.\n\n"
+            "Google Cloud Console'dan indirdiğiniz .json dosyasını seçtiğinizden "
+            f"emin olun.\n\nAyrıntı: {exc}"
+        ) from exc
+
+    if not isinstance(veri, dict):
+        raise KimlikHatasi("Dosyanın içeriği beklenen biçimde değil.")
+
+    if "web" in veri:
+        raise KimlikHatasi(
+            "Bu dosya bir WEB uygulaması istemcisi; masaüstü uygulamalarında "
+            "çalışmaz.\n\n"
+            "Google Cloud Console → Kimlik Bilgileri → OAuth istemci kimliği "
+            "oluştururken uygulama türü olarak <Masaüstü uygulaması> seçmeniz "
+            "gerekiyor."
+        )
+
+    kurulu = veri.get("installed")
+    if not isinstance(kurulu, dict):
+        raise KimlikHatasi(
+            "Bu dosya bir OAuth istemci dosyası değil.\n\n"
+            "Google Cloud Console → Kimlik Bilgileri bölümünden, oluşturduğunuz "
+            "<Masaüstü uygulaması> istemcisinin JSON dosyasını indirin."
+        )
+
+    eksikler = [alan for alan in ("client_id", "client_secret") if not kurulu.get(alan)]
+    if eksikler:
+        raise KimlikHatasi(
+            f"Dosyada şu alanlar eksik: {', '.join(eksikler)}. "
+            "Dosya bozulmuş olabilir; Google Cloud Console'dan yeniden indirin."
+        )
+    return str(kurulu["client_id"])
+
+
+def istemci_dosyasini_kur(kaynak: Path, veri_klasoru: Path) -> str:
+    """Secilen credentials.json'u dogrulayip uygulamanin klasorune kopyalar.
+
+    Kullanicinin dosyayi elle AppData klasorune tasimasi gerekmesin diye;
+    ayarlar penceresindeki 'Dosya seç' dugmesi bunu cagirir.
+    """
+    istemci_kimligi = istemci_dosyasini_dogrula(Path(kaynak))
+
+    hedef = Path(veri_klasoru) / ISTEMCI_DOSYASI
+    hedef.parent.mkdir(parents=True, exist_ok=True)
+    hedef.write_bytes(Path(kaynak).read_bytes())
+
+    # Baska bir Google projesine gecildiginde eski jeton gecersizdir
+    jetonu_sil(veri_klasoru)
+    log.info("Kullanici OAuth istemcisi kuruldu: %s", istemci_kimligi)
+    return istemci_kimligi
+
+
+def kullanici_istemcisini_sil(veri_klasoru: Path) -> None:
+    """Kullaniciya ozel istemciyi kaldirir; uygulama gomulu dosyaya doner."""
+    (Path(veri_klasoru) / ISTEMCI_DOSYASI).unlink(missing_ok=True)
+    jetonu_sil(veri_klasoru)
+
+
 def jeton_kaydet(veri_klasoru: Path, kimlik: Credentials) -> None:
     yol = jeton_yolu(veri_klasoru)
     yol.parent.mkdir(parents=True, exist_ok=True)

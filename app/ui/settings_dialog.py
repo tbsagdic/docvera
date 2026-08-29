@@ -265,35 +265,161 @@ class AyarlarDiyalogu(QDialog):
         satir.addWidget(kes_dugmesi)
         satir.addStretch(1)
 
-        kurulum = QLabel()
-        kurulum.setWordWrap(True)
-        kurulum.setStyleSheet("color: #666; font-size: 11px;")
-
-        from app.drive.auth import istemci_hazir_mi
-
-        if istemci_hazir_mi(veri_klasoru()):
-            kurulum.setText(
-                "<b>Google Drive'a bağlan</b> düğmesine basın, açılan Google "
-                "sayfasından hesabınızı seçip izin verin. Başka bir işlem yok. "
-                f"Uygulama Drive'ınızda <b>{self.ayarlar.drive_kok_adi}</b> adlı "
-                "klasörü oluşturur ve arşivi oraya yükler; Drive'ınızdaki başka "
-                "hiçbir dosyaya erişemez."
-            )
-        else:
-            kurulum.setText(
-                "<b>Google bağlantı dosyası eksik.</b> Bu dosya normalde "
-                "uygulamayla birlikte gelir; eksikse uygulamayı yeniden kurun. "
-                "Kendi Google projenizi kullanacaksanız "
-                f"<code>credentials.json</code> dosyasını <code>{veri_klasoru()}</code> "
-                "klasörüne koyun."
-            )
-            kurulum.setStyleSheet("color: #c0392b; font-size: 11px;")
-
         duzen.addWidget(self.drive_kutusu)
         duzen.addWidget(self.drive_durumu)
         duzen.addLayout(satir)
-        duzen.addWidget(kurulum)
+        duzen.addSpacing(6)
+        duzen.addWidget(self._baglanti_yontemi_kutusu())
         return kutu
+
+    def _baglanti_yontemi_kutusu(self) -> QGroupBox:
+        """Iki baglanti yontemini acikca sunar.
+
+        Cogu kullanici icin dogru cevap 1. secenek: hicbir kurulum yok.
+        2. secenek, arsivin kendi Google projeleri uzerinden gitmesini
+        isteyen (veya kurumsal politikasi boyle olan) kullanicilar icin.
+        """
+        kutu = QGroupBox("Bağlantı yöntemi")
+        duzen = QVBoxLayout(kutu)
+
+        # --- Secenek 1: uygulamayla gelen baglanti -----------------------
+        birinci = QLabel(
+            "<b>1) Docvera ile bağlan</b> &nbsp;<i>(önerilen)</i><br>"
+            "Yukarıdaki <b>Google Drive'a bağlan</b> düğmesine basın, açılan "
+            "Google sayfasından hesabınızı seçip izin verin. Başka hiçbir işlem "
+            "yok."
+        )
+        birinci.setWordWrap(True)
+        birinci.setStyleSheet("font-size: 11px;")
+
+        # --- Secenek 2: kendi Google projesi -----------------------------
+        ikinci = QLabel(
+            "<b>2) Kendi Google hesabımla bağlan</b><br>"
+            "Google Cloud'da kendi projenizi oluşturup indirdiğiniz dosyayı "
+            "seçersiniz. Yaklaşık 5 dakika sürer, bir kez yapılır."
+        )
+        ikinci.setWordWrap(True)
+        ikinci.setStyleSheet("font-size: 11px;")
+
+        self.istemci_sec_dugmesi = QPushButton("Dosya seç...")
+        self.istemci_sec_dugmesi.setToolTip(
+            "Google Cloud'dan indirdiğiniz JSON dosyasını seçin. "
+            "Yeniden adlandırmanıza veya kopyalamanıza gerek yok."
+        )
+        self.istemci_sec_dugmesi.clicked.connect(self._istemci_dosyasi_sec)
+
+        rehber_dugmesi = QPushButton("Nasıl yapılır?")
+        rehber_dugmesi.setToolTip("Adım adım anlatım ve Google sayfalarına kısayollar")
+        rehber_dugmesi.clicked.connect(self._drive_rehberini_ac)
+
+        self.istemci_kaldir_dugmesi = QPushButton("Kaldır")
+        self.istemci_kaldir_dugmesi.setToolTip(
+            "Kendi dosyanızı kaldırır, uygulamayla gelen bağlantıya döner"
+        )
+        self.istemci_kaldir_dugmesi.clicked.connect(self._istemci_dosyasini_kaldir)
+
+        ikinci_satir = QHBoxLayout()
+        ikinci_satir.addWidget(self.istemci_sec_dugmesi)
+        ikinci_satir.addWidget(rehber_dugmesi)
+        ikinci_satir.addWidget(self.istemci_kaldir_dugmesi)
+        ikinci_satir.addStretch(1)
+
+        self.istemci_durumu = QLabel()
+        self.istemci_durumu.setWordWrap(True)
+        self.istemci_durumu.setStyleSheet("font-size: 11px;")
+
+        duzen.addWidget(birinci)
+        duzen.addSpacing(8)
+        duzen.addWidget(ikinci)
+        duzen.addLayout(ikinci_satir)
+        duzen.addWidget(self.istemci_durumu)
+
+        self._istemci_durumunu_yaz()
+        return kutu
+
+    def _istemci_durumunu_yaz(self) -> None:
+        """Hangi baglanti yonteminin etkin oldugunu gosterir."""
+        from app.drive.auth import istemci_hazir_mi, kullanici_istemcisi_var_mi
+
+        kendi = kullanici_istemcisi_var_mi(veri_klasoru())
+        self.istemci_kaldir_dugmesi.setEnabled(kendi)
+
+        if kendi:
+            self.istemci_durumu.setText(
+                "Şu an <b>kendi Google projeniz</b> kullanılıyor."
+            )
+            self.istemci_durumu.setStyleSheet("font-size: 11px; color: #1f6f43;")
+        elif istemci_hazir_mi(veri_klasoru()):
+            self.istemci_durumu.setText(
+                "Şu an <b>uygulamayla gelen bağlantı</b> kullanılıyor - "
+                "1. seçenek hazır."
+            )
+            self.istemci_durumu.setStyleSheet("font-size: 11px; color: #666;")
+        else:
+            self.istemci_durumu.setText(
+                "Uygulamayla gelen bağlantı dosyası bulunamadı. "
+                "<b>2. seçeneği</b> kullanın ya da uygulamayı yeniden kurun."
+            )
+            self.istemci_durumu.setStyleSheet("font-size: 11px; color: #c0392b;")
+
+    def _drive_rehberini_ac(self) -> None:
+        from app.ui.drive_rehber_dialog import DriveRehberDiyalogu
+
+        DriveRehberDiyalogu(self).exec()
+
+    def _istemci_dosyasi_sec(self) -> None:
+        """Kullanicinin indirdigi OAuth dosyasini alir, dogrular ve kurar."""
+        from app.drive.auth import KimlikHatasi, istemci_dosyasini_kur
+
+        indirilenler = str(Path.home() / "Downloads")
+        secilen, _ = QFileDialog.getOpenFileName(
+            self,
+            "Google Cloud'dan indirdiğiniz JSON dosyasını seçin",
+            indirilenler if Path(indirilenler).is_dir() else "",
+            "Google OAuth dosyası (*.json);;Tüm dosyalar (*)",
+        )
+        if not secilen:
+            return
+
+        try:
+            istemci_kimligi = istemci_dosyasini_kur(secilen, veri_klasoru())
+        except KimlikHatasi as exc:
+            QMessageBox.critical(self, "Dosya kullanılamadı", str(exc))
+            return
+
+        self.ayarlar.drive_kok_klasor_id = ""  # baska proje, baska klasor
+        self.vt.klasor_onbellegi_temizle()
+        self._istemci_durumunu_yaz()
+        self._drive_durumunu_yaz()
+        QMessageBox.information(
+            self,
+            "Dosya kabul edildi",
+            "Kendi Google projeniz kuruldu.\n\n"
+            f"İstemci: {istemci_kimligi[:28]}...\n\n"
+            "Şimdi <b>Google Drive'a bağlan</b> düğmesine basıp hesabınızı "
+            "seçin.",
+        )
+
+    def _istemci_dosyasini_kaldir(self) -> None:
+        from app.drive.auth import kullanici_istemcisini_sil
+
+        cevap = QMessageBox.question(
+            self,
+            "Kendi bağlantınızı kaldır",
+            "Kendi Google projeniz kaldırılacak ve uygulamayla gelen bağlantıya "
+            "dönülecek.\n\nDrive'daki mevcut dosyalarınız silinmez, ancak yeni "
+            "yüklemeler için yeniden bağlanmanız gerekir.\n\nDevam edilsin mi?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if cevap != QMessageBox.StandardButton.Yes:
+            return
+
+        kullanici_istemcisini_sil(veri_klasoru())
+        self.ayarlar.drive_kok_klasor_id = ""
+        self.vt.klasor_onbellegi_temizle()
+        self._istemci_durumunu_yaz()
+        self._drive_durumunu_yaz()
 
     def _guncelleme_kutusu(self) -> QGroupBox:
         kutu = QGroupBox("Güncelleme")
