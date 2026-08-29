@@ -8,7 +8,18 @@ import shutil
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSize, QTimer
-from PySide6.QtGui import QIcon, QKeySequence, QPixmap, QShortcut, QTransform
+from PySide6.QtGui import (
+    QBitmap,
+    QIcon,
+    QImage,
+    QKeySequence,
+    QPainter,
+    QPixmap,
+    QRegion,
+    QShortcut,
+    QTransform,
+)
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -50,8 +61,46 @@ from app.validation import (
 from app.varliklar import YATAY_LOGO, varlik_yolu
 
 KUCUK_RESIM = QSize(72, 100)
-# Yatay logo 1600x520 oraninda; yukseklik verilip genislik oranla belirlenir
-LOGO_BOYUTU = QSize(222, 72)
+SAYFA_GRID = QSize(90, 134)  # bir kucuk resim hucresi
+SAYFA_ARALIK = 4
+# Serit tek seferde 5x2 = 10 sayfa gosterir; fazlasi sonraki serit sayfasina
+SAYFA_SUTUN = 5
+SAYFA_SATIR = 2
+SERIT_SAYFA_BOYU = SAYFA_SUTUN * SAYFA_SATIR
+# Logo yuksekligi; genislik cizimin kendi oranindan hesaplanir
+LOGO_YUKSEKLIGI = 68
+# Logo once bu kat kadar buyuk cizilir, sonra kucultulur: kenarlar keskin kalir
+LOGO_OLCUM_KATI = 3
+
+
+def logo_pixmapi(yukseklik: int) -> QPixmap:
+    """Yatay logoyu cevresindeki bos paydan arindirip verilen yukseklige getirir.
+
+    Dosyanin viewBox'i cizimin cevresinde genis pay birakir. Pay sabit degildir:
+    yazi tipi rasterleme boyutuna gore olculdugunden wordmark'in genisligi de
+    boyutla degisir, sabit bir kirpma dikdortgeni logonun sagini kesiyor. Bu
+    yuzden logo once bol payli ve yuksek cozunurlukte cizilir, gercek siniri
+    piksellerden olculur, kirpilir ve istenen yukseklige kucultulur.
+    """
+    cizici = QSvgRenderer(str(varlik_yolu(YATAY_LOGO)))
+    tuval = cizici.viewBoxF()
+    olcek = LOGO_OLCUM_KATI * yukseklik / tuval.height()
+
+    goruntu = QImage(
+        round(tuval.width() * olcek),
+        round(tuval.height() * olcek),
+        QImage.Format.Format_ARGB32_Premultiplied,
+    )
+    goruntu.fill(Qt.GlobalColor.transparent)
+    boyayici = QPainter(goruntu)
+    boyayici.setRenderHint(QPainter.RenderHint.Antialiasing)
+    cizici.render(boyayici)
+    boyayici.end()
+
+    sinir = QRegion(QBitmap.fromImage(goruntu.createAlphaMask())).boundingRect()
+    return QPixmap.fromImage(goruntu.copy(sinir)).scaledToHeight(
+        yukseklik, Qt.TransformationMode.SmoothTransformation
+    )
 
 
 class TaslakSayfa:
@@ -69,6 +118,7 @@ class AnaPencere(QMainWindow):
         self.vt = vt
         self.kuyruk = kuyruk  # app.drive.queue.YuklemeKuyrugu veya None
         self.taslaklar: list[TaslakSayfa] = []
+        self._serit_sayfasi = 0  # seritte gosterilen 10'luk kume
         self.cihazlar: list = []
         self.tarama_iscisi: TaramaIscisi | None = None
         self.liste_iscisi: CihazListeIscisi | None = None
@@ -81,7 +131,7 @@ class AnaPencere(QMainWindow):
         self.oturum_klasoru.mkdir(parents=True, exist_ok=True)
 
         self.setWindowTitle("Docvera - Müşteri Evrak Tarama")
-        self.resize(1060, 720)
+        self.resize(1000, 720)
         self.setAcceptDrops(True)  # PDF/goruntu surukleyip birakmak icin
         self._arayuzu_kur()
         self._menuyu_kur()
@@ -110,20 +160,24 @@ class AnaPencere(QMainWindow):
         sol.addWidget(self._kaydet_dugmesi())
 
         sag = QVBoxLayout()
-        sag.addWidget(self._sayfa_kutusu(), 1)
+        sag.addWidget(self._sayfa_kutusu())
+        sag.addStretch(1)
 
         ana_duzen.addLayout(sol, 0)
-        ana_duzen.addLayout(sag, 1)
+        ana_duzen.addLayout(sag, 0)
+        ana_duzen.addStretch(1)
 
         self.durum_etiketi = QLabel()
         self.statusBar().addPermanentWidget(self.durum_etiketi)
 
     def _logo_seridi(self) -> QLabel:
         """Sol panelin ustundeki marka seridi."""
+        oran = self.devicePixelRatioF()
+        pixmap = logo_pixmapi(round(LOGO_YUKSEKLIGI * oran))
+        pixmap.setDevicePixelRatio(oran)
+
         etiket = QLabel()
-        # QIcon SVG'yi istenen boyutta yeniden rasterler: buyutup kucultmeye
-        # gore keskin kalir, en-boy orani da korunur.
-        etiket.setPixmap(QIcon(str(varlik_yolu(YATAY_LOGO))).pixmap(LOGO_BOYUTU))
+        etiket.setPixmap(pixmap)
         etiket.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         return etiket
 
@@ -252,17 +306,44 @@ class AnaPencere(QMainWindow):
         duzen.addWidget(self.kaydet_dugmesi)
         return sarici
 
+    def _serit_olcusu(self) -> QSize:
+        """Tam SAYFA_SUTUN x SAYFA_SATIR hucre alan serit boyutu."""
+        hucre_en = SAYFA_GRID.width() + 2 * SAYFA_ARALIK
+        hucre_boy = SAYFA_GRID.height() + 2 * SAYFA_ARALIK
+        cerceve = 2 * self.sayfa_listesi.frameWidth()
+        return QSize(
+            SAYFA_SUTUN * hucre_en + cerceve,
+            SAYFA_SATIR * hucre_boy + cerceve,
+        )
+
     def _sayfa_kutusu(self) -> QGroupBox:
-        kutu = QGroupBox("Taranan Sayfalar")
+        self.sayfa_grubu = QGroupBox("Taranan Sayfalar")
+        kutu = self.sayfa_grubu
         duzen = QVBoxLayout(kutu)
 
         self.sayfa_listesi = QListWidget()
         self.sayfa_listesi.setViewMode(QListWidget.ViewMode.IconMode)
         self.sayfa_listesi.setIconSize(KUCUK_RESIM)
-        self.sayfa_listesi.setGridSize(QSize(90, 134))
+        self.sayfa_listesi.setGridSize(SAYFA_GRID)
         self.sayfa_listesi.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.sayfa_listesi.setMovement(QListWidget.Movement.Static)
-        self.sayfa_listesi.setSpacing(4)
+        self.sayfa_listesi.setSpacing(SAYFA_ARALIK)
+        # Serit tam bir kumeyi gosterir; kaydirma yok, kume degistirilir
+        self.sayfa_listesi.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.sayfa_listesi.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.sayfa_listesi.setFixedSize(self._serit_olcusu())
+
+        self.onceki_dugmesi = QPushButton("‹")
+        self.onceki_dugmesi.setFixedWidth(28)
+        self.onceki_dugmesi.clicked.connect(lambda: self._serit_sayfasini_kaydir(-1))
+        self.sonraki_dugmesi = QPushButton("›")
+        self.sonraki_dugmesi.setFixedWidth(28)
+        self.sonraki_dugmesi.clicked.connect(lambda: self._serit_sayfasini_kaydir(1))
+        self.serit_etiketi = QLabel()
 
         self.sil_dugmesi = QPushButton("Seçili sayfayı sil")
         self.sil_dugmesi.clicked.connect(self.secili_sayfayi_sil)
@@ -276,6 +357,9 @@ class AnaPencere(QMainWindow):
         arac.addWidget(self.sag_dugmesi)
         arac.addWidget(self.sil_dugmesi)
         arac.addStretch(1)
+        arac.addWidget(self.onceki_dugmesi)
+        arac.addWidget(self.serit_etiketi)
+        arac.addWidget(self.sonraki_dugmesi)
 
         duzen.addWidget(self.sayfa_listesi, 1)
         duzen.addLayout(arac)
@@ -658,7 +742,7 @@ class AnaPencere(QMainWindow):
         taslak = TaslakSayfa(gecici_yol)
         taslak.donme = diyalog.donme
         self.taslaklar.append(taslak)
-        self._sayfa_listesini_yenile()
+        self._sayfa_listesini_yenile(len(self.taslaklar) - 1)
         self._formu_denetle()
         self._kimligi_oku(gecici_yol)
         return diyalog.karar == ONAYLA_VE_DEVAM
@@ -750,7 +834,7 @@ class AnaPencere(QMainWindow):
 
         for yol in yollar:
             self.taslaklar.append(TaslakSayfa(yol))
-        self._sayfa_listesini_yenile()
+        self._sayfa_listesini_yenile(len(self.taslaklar) - 1)
         self._formu_denetle()
         self._kimligi_oku(*yollar)
         self.statusBar().showMessage(
@@ -909,9 +993,31 @@ class AnaPencere(QMainWindow):
 
     # --- Sayfa seridi -----------------------------------------------------
 
-    def _sayfa_listesini_yenile(self) -> None:
+    def _serit_sayfa_sayisi(self) -> int:
+        """Seritte gezilebilecek kume sayisi (bos listede de en az 1)."""
+        return max(1, -(-len(self.taslaklar) // SERIT_SAYFA_BOYU))
+
+    def _serit_sayfasini_kaydir(self, yon: int) -> None:
+        hedef = self._serit_sayfasi + yon
+        if 0 <= hedef < self._serit_sayfa_sayisi():
+            self._serit_sayfasi = hedef
+            self._sayfa_listesini_yenile()
+
+    def _sayfa_listesini_yenile(self, odak: int | None = None) -> None:
+        """Seridi tazeler; odak verilirse o sayfanin kumesine gecip secer."""
+        toplam = len(self.taslaklar)
+        if odak is not None and 0 <= odak < toplam:
+            self._serit_sayfasi = odak // SERIT_SAYFA_BOYU
+        self._serit_sayfasi = min(self._serit_sayfasi, self._serit_sayfa_sayisi() - 1)
+
+        self.sayfa_grubu.setTitle(
+            f"Taranan Sayfalar ({toplam})" if toplam else "Taranan Sayfalar"
+        )
+
+        bas = self._serit_sayfasi * SERIT_SAYFA_BOYU
         self.sayfa_listesi.clear()
-        for sira, taslak in enumerate(self.taslaklar, start=1):
+        for indeks in range(bas, min(bas + SERIT_SAYFA_BOYU, toplam)):
+            taslak = self.taslaklar[indeks]
             pixmap = QPixmap(str(taslak.gecici_yol))
             if taslak.donme:
                 pixmap = pixmap.transformed(QTransform().rotate(taslak.donme))
@@ -922,13 +1028,37 @@ class AnaPencere(QMainWindow):
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-            oge = QListWidgetItem(simge, f"Sayfa {sira}")
+            oge = QListWidgetItem(simge, f"Sayfa {indeks + 1}")
             oge.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+            # Seritte sadece bir kume durdugundan satir numarasi taslak
+            # indeksine esit degil; gercek indeks ogenin uzerinde tasinir.
+            oge.setData(Qt.ItemDataRole.UserRole, indeks)
             self.sayfa_listesi.addItem(oge)
 
+        if odak is not None and bas <= odak < bas + SERIT_SAYFA_BOYU:
+            self.sayfa_listesi.setCurrentRow(odak - bas)
+
+        self._serit_gezinmesini_yenile()
+
+    def _serit_gezinmesini_yenile(self) -> None:
+        sayfa_sayisi = self._serit_sayfa_sayisi()
+        cok_sayfali = sayfa_sayisi > 1
+        self.serit_etiketi.setText(
+            f"{self._serit_sayfasi + 1} / {sayfa_sayisi}" if cok_sayfali else ""
+        )
+        for dugme, etkin in (
+            (self.onceki_dugmesi, self._serit_sayfasi > 0),
+            (self.sonraki_dugmesi, self._serit_sayfasi < sayfa_sayisi - 1),
+        ):
+            dugme.setVisible(cok_sayfali)
+            dugme.setEnabled(etkin)
+
     def _secili_indeks(self) -> int | None:
-        satir = self.sayfa_listesi.currentRow()
-        return satir if 0 <= satir < len(self.taslaklar) else None
+        oge = self.sayfa_listesi.currentItem()
+        if oge is None:
+            return None
+        indeks = oge.data(Qt.ItemDataRole.UserRole)
+        return indeks if indeks is not None and 0 <= indeks < len(self.taslaklar) else None
 
     def secili_sayfayi_sil(self) -> None:
         indeks = self._secili_indeks()
@@ -936,7 +1066,8 @@ class AnaPencere(QMainWindow):
             return
         taslak = self.taslaklar.pop(indeks)
         taslak.gecici_yol.unlink(missing_ok=True)
-        self._sayfa_listesini_yenile()
+        # Silinenin yerindeki sayfa secili kalir, liste sonundaysa bir onceki
+        self._sayfa_listesini_yenile(min(indeks, len(self.taslaklar) - 1))
         self._formu_denetle()
 
     def secili_sayfayi_dondur(self, aci: int) -> None:
@@ -944,8 +1075,7 @@ class AnaPencere(QMainWindow):
         if indeks is None:
             return
         self.taslaklar[indeks].donme = (self.taslaklar[indeks].donme + aci) % 360
-        self._sayfa_listesini_yenile()
-        self.sayfa_listesi.setCurrentRow(indeks)
+        self._sayfa_listesini_yenile(indeks)
 
     # --- Kayit ------------------------------------------------------------
 
