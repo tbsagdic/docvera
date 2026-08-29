@@ -19,6 +19,7 @@ yonetici yetkisi gerekmez ve Tesseract'a --tessdata-dir ile gosterilir.
 
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 import subprocess
@@ -36,21 +37,32 @@ Ilerleme = Callable[[str, int], None]
 
 WINGET_PAKET = "UB-Mannheim.TesseractOCR"
 
-# winget bulunmayan makineler icin yedek. Surum yukseltildiginde bu adres
-# guncellenmelidir; ulasilamazsa kullaniciya acik hata verilir.
-YEDEK_KURULUM_ADRESI = (
-    "https://digi.bib.uni-mannheim.de/tesseract/"
-    "tesseract-ocr-w64-setup-5.5.0.20241111.exe"
+# winget bulunmayan makineler icin yedek kaynaklar. Surum numarasi GOMULMEZ:
+# en son yayin GitHub API'sinden sorulur, boylece Tesseract surum atladiginda
+# kodun guncellenmesi gerekmez. UB-Mannheim yapisi winget'in kurdugunun
+# aynisidir; ulasilamazsa ust kaynaga dusulur.
+KURULUM_DEPOLARI = (
+    "UB-Mannheim/tesseract",
+    "tesseract-ocr/tesseract",
 )
 
-# tessdata deposu. "fast" daha hizli ama daha hatali, "best" ~15 MB;
-# standart depo ikisinin arasinda ve kimlik okumada yeterli.
+_YAYIN_ADRESI = "https://api.github.com/repos/{depo}/releases/latest"
+_KURULUM_DOSYA_ONEKI = "tesseract-ocr-w64-setup"
+
+# Dil paketleri "fast" modellerden iner: dil basina ~4 MB ve belirgin sekilde
+# daha hizli. "best" modeller 20 MB'a yakin ve burada gereksiz - MRZ zaten
+# karakter beyaz listesiyle okunuyor, Turkce okuma da MRZ ile karsilastirilip
+# dogrulanmadan kabul edilmiyor.
 DIL_ADRESI = (
-    "https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/{dil}.traineddata"
+    "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/"
+    "{dil}.traineddata"
 )
 
 _GUVENILIR_SUNUCULAR = (
-    "digi.bib.uni-mannheim.de",
+    "api.github.com",
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
     "raw.githubusercontent.com",
 )
 
@@ -153,11 +165,55 @@ def _winget_ile_kur(bildir: Ilerleme) -> bool:
     return False
 
 
+def _kurulum_varligi(yayin: dict) -> str:
+    """Yayindaki Windows kurulum dosyasinin adresi; yoksa bos dizge.
+
+    Yayinda .zip, .sha256 gibi baska varliklar da bulunur; yalnizca w64
+    kurulum programi kabul edilir.
+    """
+    for varlik in yayin.get("assets", []):
+        ad = varlik.get("name", "")
+        if ad.startswith(_KURULUM_DOSYA_ONEKI) and ad.endswith(".exe"):
+            return varlik.get("browser_download_url", "")
+    return ""
+
+
+def _son_kurulum_adresi() -> str:
+    """En son Tesseract kurulum dosyasinin adresini GitHub'dan ogrenir."""
+    for depo in KURULUM_DEPOLARI:
+        adres = _YAYIN_ADRESI.format(depo=depo)
+        _dogrula_adres(adres)
+        istek = urllib.request.Request(
+            adres,
+            headers={"User-Agent": "Docvera", "Accept": "application/vnd.github+json"},
+        )
+        try:
+            with urllib.request.urlopen(istek, timeout=_INDIRME_ZAMAN_ASIMI) as yanit:
+                yayin = json.load(yanit)
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            log.warning("%s son yayini okunamadi: %s", depo, exc)
+            continue
+
+        indirme = _kurulum_varligi(yayin)
+        if indirme:
+            return indirme
+        log.warning("%s yayininda Windows kurulum dosyasi yok", depo)
+
+    raise KurulumHatasi(
+        "Tesseract kurulum dosyası bulunamadı. İnternet bağlantısını "
+        "denetleyin; sorun sürerse bileşeni elle kurabilirsiniz:\n"
+        "https://github.com/UB-Mannheim/tesseract/wiki"
+    )
+
+
 def _dogrudan_kur(bildir: Ilerleme) -> None:
-    """Resmi dagitimdan indirip sessiz kurar (winget yoksa)."""
+    """Resmi yayindan indirip sessiz kurar (winget yoksa)."""
+    bildir("Kurulum dosyası aranıyor...", -1)
+    adres = _son_kurulum_adresi()
+
     with tempfile.TemporaryDirectory(prefix="docvera_kurulum_") as gecici:
         kurulum = Path(gecici) / "tesseract-kurulum.exe"
-        _indir(YEDEK_KURULUM_ADRESI, kurulum, bildir, "Tesseract OCR")
+        _indir(adres, kurulum, bildir, "Tesseract OCR")
 
         boyut = kurulum.stat().st_size
         if boyut < _ASGARI_KURULUM_BOYUTU:

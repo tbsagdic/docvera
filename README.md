@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
 ![Python](https://img.shields.io/badge/python-3.10%20--%203.14-3776AB)
 ![Arayüz](https://img.shields.io/badge/aray%C3%BCz-PySide6-41CD52)
-![Testler](https://img.shields.io/badge/testler-211%20ge%C3%A7iyor-2EA043)
+![Testler](https://img.shields.io/badge/testler-249%20ge%C3%A7iyor-2EA043)
 
 </div>
 
@@ -180,8 +180,8 @@ Türkçe dil paketi
 
 | Bileşen | Nasıl kurulur | Yönetici izni |
 |---|---|---|
-| Tesseract OCR | Önce **winget** (`UB-Mannheim.TesseractOCR`) denenir — indirdiği dosyanın SHA-256 özetini Microsoft'un deposundaki paket özetiyle kendisi doğrular. winget yoksa resmî UB-Mannheim dağıtımından HTTPS ile indirilip sessiz kurulur. | Windows bir kez sorar, "Evet" demek yeterli |
-| Türkçe + İngilizce dil paketi | `tessdata` deposundan `%LOCALAPPDATA%\Docvera\tessdata\` klasörüne indirilir ve Tesseract'a `--tessdata-dir` ile gösterilir | Gerekmez |
+| Tesseract OCR (~50 MB) | Önce **winget** (`UB-Mannheim.TesseractOCR`) denenir — indirdiği dosyanın SHA-256 özetini Microsoft'un deposundaki paket özetiyle kendisi doğrular. winget yoksa **GitHub Releases**'teki en son sürüm sorulup indirilir; sürüm numarası koda gömülü değildir. | Windows bir kez sorar, "Evet" demek yeterli |
+| Türkçe + İngilizce dil paketi (~8 MB) | `tessdata_fast` deposundan `%LOCALAPPDATA%\Docvera\tessdata\` klasörüne indirilir ve Tesseract'a `--tessdata-dir` ile gösterilir | Gerekmez |
 
 Dil paketlerinin Program Files yerine kullanıcı klasörüne inmesi bilinçlidir:
 böylece dil eklemek için yönetici yetkisi gerekmez.

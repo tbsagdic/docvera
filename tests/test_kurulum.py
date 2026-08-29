@@ -75,8 +75,41 @@ class TestAdresGuvenligi:
             tesseract._dogrula_adres("file:///C:/kotu.exe")
 
     def test_gomulu_adresler_beyaz_listeden_gecer(self):
-        tesseract._dogrula_adres(tesseract.YEDEK_KURULUM_ADRESI)
         tesseract._dogrula_adres(tesseract.DIL_ADRESI.format(dil="tur"))
+        for depo in tesseract.KURULUM_DEPOLARI:
+            tesseract._dogrula_adres(tesseract._YAYIN_ADRESI.format(depo=depo))
+
+    def test_yayin_indirme_adresi_beyaz_listede(self):
+        """GitHub yayin varliklari github.com uzerinden gelir."""
+        tesseract._dogrula_adres(
+            "https://github.com/UB-Mannheim/tesseract/releases/download/"
+            "v5.4.0/tesseract-ocr-w64-setup-5.4.0.exe"
+        )
+
+
+class TestKurulumVarligiSecimi:
+    """Yayindaki dogru dosya secilmeli: .zip ya da .sha256 calistirilamaz."""
+
+    def test_w64_kurulum_dosyasi_secilir(self):
+        yayin = {
+            "assets": [
+                {"name": "tesseract-ocr-w64-setup-5.4.0.exe.sha256", "browser_download_url": "https://github.com/a.sha256"},
+                {"name": "tesseract-ocr-w64-setup-5.4.0.exe", "browser_download_url": "https://github.com/a.exe"},
+            ]
+        }
+        assert tesseract._kurulum_varligi(yayin) == "https://github.com/a.exe"
+
+    def test_w32_ve_kaynak_paketleri_secilmez(self):
+        yayin = {
+            "assets": [
+                {"name": "tesseract-5.4.0.zip", "browser_download_url": "https://github.com/a.zip"},
+                {"name": "tesseract-ocr-w32-setup-5.4.0.exe", "browser_download_url": "https://github.com/w32.exe"},
+            ]
+        }
+        assert tesseract._kurulum_varligi(yayin) == ""
+
+    def test_varliksiz_yayin_bos_doner(self):
+        assert tesseract._kurulum_varligi({}) == ""
 
 
 class TestDilPaketiKurulumu:
