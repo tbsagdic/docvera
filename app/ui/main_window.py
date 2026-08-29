@@ -472,18 +472,34 @@ class AnaPencere(QMainWindow):
 
     def _onceki_kurulumu_bildir(self) -> None:
         """Bir onceki oturumda baslatilan kurulumun sonucunu gosterir."""
-        from app.guncelleme import eski_dosyalari_temizle, sonucu_al
+        from app.guncelleme import (
+            eski_dosyalari_temizle,
+            sonucu_al,
+            yarim_kalan_kurulum,
+        )
 
         durum, mesaj = sonucu_al()
         if durum == "tamam":
             self.statusBar().showMessage(mesaj, 10000)
             eski_dosyalari_temizle()  # indirilen paket artik gereksiz
-        elif durum == "hata":
+            return
+        if durum == "hata":
             QMessageBox.warning(
                 self,
                 "Güncelleme tamamlanamadı",
                 f"{mesaj}\n\nÖnceki sürüm çalışmaya devam ediyor. "
                 "Yardım menüsünden yeniden deneyebilirsiniz.",
+            )
+            return
+
+        # Sonuc dosyasi yok ama kurulum betigi kalmissa betik hic calismamis
+        if yarim_kalan_kurulum():
+            QMessageBox.warning(
+                self,
+                "Güncelleme tamamlanamadı",
+                "Başlatılan güncelleme tamamlanmadı; uygulama önceki sürümde "
+                "kaldı. Güvenlik yazılımı kurulum betiğini engellemiş olabilir."
+                "\n\nYardım menüsünden yeniden deneyebilirsiniz.",
             )
 
     def hakkinda(self) -> None:

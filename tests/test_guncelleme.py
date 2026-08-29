@@ -267,6 +267,7 @@ def test_kur_betigi_uretir_ve_baslatir(tmp_path, monkeypatch):
 
     def sahte_popen(komut, **kwargs):
         baslatilan["komut"] = komut
+        baslatilan["bayraklar"] = kwargs.get("creationflags", 0)
         return object()
 
     monkeypatch.setattr(guncelleme.subprocess, "Popen", sahte_popen)
@@ -279,8 +280,24 @@ def test_kur_betigi_uretir_ve_baslatir(tmp_path, monkeypatch):
     # Kurulum sihirbaziyla gelen kaldirici yeni pakette yok; korunmali
     assert "unins000" in icerik
     assert baslatilan["komut"][:2] == ["cmd", "/c"]
+    # Betik kendi konsolunda calismali: konsolsuz baslatilirsa cmd ilk echo
+    # satirinda oluyor ve guncelleme sessizce yarim kaliyor
+    assert baslatilan["bayraklar"] & 0x00000010
     # Paket, hedefin yaninda acilmis olmali (move ayni diskte anlik olsun diye)
     assert (kurulum.parent / f".docvera_paket_{os.getpid()}").is_dir()
+
+
+def test_yarim_kalan_kurulum_tespit_edilir(veri_klasoru, monkeypatch):
+    """Betik kalmis ama sonuc yazilmamissa kurulum hic calismamistir."""
+    monkeypatch.setattr(guncelleme, "kurulum_klasoru", lambda: None)
+    klasor = veri_klasoru / "guncelleme"
+    klasor.mkdir()
+    (klasor / "kur_123.bat").write_text("x")
+    (klasor / "Docvera-1.0.7-win64.zip").write_text("y")
+
+    assert guncelleme.yarim_kalan_kurulum() is True
+    assert list(klasor.iterdir()) == []  # kalintilar temizlendi
+    assert guncelleme.yarim_kalan_kurulum() is False  # ikinci kez uyarmaz
 
 
 def test_kur_izin_yoksa_indirmeden_once_durur(monkeypatch):

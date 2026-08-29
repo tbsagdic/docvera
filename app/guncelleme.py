@@ -471,13 +471,18 @@ def kur(zip_yolu: str | Path, yayin: Yayin) -> Path:
 def _betigi_baslat(betik: Path, calisma_klasoru: Path) -> None:
     """Betigi uygulamadan bagimsiz bir surec olarak baslatir.
 
+    Betik KENDI KONSOLUNDA calisir. DETACHED_PROCESS ile baslatilirsa cmd'nin
+    gecerli bir cikti tanitici olmaz ve betik ilk `echo` satirinda sessizce
+    oluyordu; guncelleme de hic yapilmadan yarim kaliyordu. Ayrica kullanici
+    uygulama kapandiktan sonra bir seyin surdugunu gormeli - aksi halde
+    exe'ye yeniden tiklar ve yer degistirmeyi kilitler.
+
     Uygulama bir is nesnesi (job object) icinde calistiriliyorsa - bazi
     baslatici, uzaktan yonetim ve kiosk yazilimlari boyle yapar - uygulama
-    kapandigi anda cocuk surecler de oldurulur ve guncelleme yarim kalirdi.
-    Bu yuzden once is nesnesinden ayrilmayi deneriz; izin verilmiyorsa
-    olagan yolla baslatiriz.
+    kapandigi anda cocuk surecler de oldurulur. Bu yuzden once is nesnesinden
+    ayrilmayi deneriz; izin verilmiyorsa olagan yolla baslatiriz.
     """
-    temel = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(
+    temel = getattr(subprocess, "CREATE_NEW_CONSOLE", 0x00000010) | getattr(
         subprocess, "CREATE_NEW_PROCESS_GROUP", 0
     )
     ayril = getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0x01000000)
@@ -525,16 +530,42 @@ def sonucu_al() -> tuple[str, str]:
     return "", ""
 
 
-def eski_dosyalari_temizle() -> None:
-    """Onceki guncellemelerden kalan indirme ve betikleri siler."""
+def yarim_kalan_kurulum() -> bool:
+    """Betik uretilmis ama sonuc yazilmamissa True doner.
+
+    Bu, kurulum betiginin hic calisamadigi anlamina gelir (surec kisitlamasi,
+    virus tarayici, kapatilan oturum...). Kullanici guncellemeyi baslatmis ve
+    uygulama kapanmis olur; ertesi acilista hicbir sey soylenmezse
+    guncellendigini sanip eski surumde calismaya devam eder.
+
+    Cagirandan sonra kalintilar silinir; yarim is bir dahaki denemeyi
+    bozmamali.
+    """
     klasor = veri_klasoru() / "guncelleme"
     if not klasor.is_dir():
+        return False
+    if not any(klasor.glob("kur_*.bat")):
+        return False
+    eski_dosyalari_temizle()
+    return True
+
+
+def eski_dosyalari_temizle() -> None:
+    """Onceki guncellemelerden kalan indirme, betik ve acilmis paketleri siler."""
+    klasor = veri_klasoru() / "guncelleme"
+    if klasor.is_dir():
+        for dosya in klasor.iterdir():
+            try:
+                if dosya.is_file():
+                    dosya.unlink()
+                else:
+                    shutil.rmtree(dosya, ignore_errors=True)
+            except OSError:
+                pass
+
+    # Kurulum klasorunun yanina acilmis paket/yedek kalintilari (yuzlerce MB)
+    hedef = kurulum_klasoru()
+    if hedef is None:
         return
-    for dosya in klasor.iterdir():
-        try:
-            if dosya.is_file():
-                dosya.unlink()
-            else:
-                shutil.rmtree(dosya, ignore_errors=True)
-        except OSError:
-            pass
+    for kalinti in hedef.parent.glob(".docvera_*"):
+        shutil.rmtree(kalinti, ignore_errors=True)
