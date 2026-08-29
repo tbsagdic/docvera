@@ -10,12 +10,28 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QMessageBox
-
 from app.config import UYGULAMA_ADI, UYGULAMA_SURUMU, Ayarlar, veri_klasoru
 from app.db import Veritabani
 from app.varliklar import SIMGE, varlik_yolu
+
+PAKET_DENETLE_BAYRAGI = "--paket-denetle"
+PAKET_DENETIM_HATASI = 86
+
+
+def _paketi_denetle() -> int:
+    """Paketin kritik Qt ve ana pencere bilesenlerini yukleyebildigini denetler.
+
+    Hata yakalanir; boylece penceresiz build denetimi PyInstaller'in hata
+    diyalogunda takilmak yerine sifirdan farkli bir cikis kodu dondurur.
+    """
+    try:
+        from PySide6.QtGui import QIcon  # noqa: F401
+        from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: F401
+
+        from app.ui.main_window import AnaPencere  # noqa: F401
+    except Exception:
+        return PAKET_DENETIM_HATASI
+    return 0
 
 
 def _gunlugu_kur() -> None:
@@ -60,6 +76,12 @@ def _kuyrugu_baslat(ayarlar: Ayarlar, vt: Veritabani, log: logging.Logger):
 
 
 def main() -> int:
+    if PAKET_DENETLE_BAYRAGI in sys.argv:
+        return _paketi_denetle()
+
+    from PySide6.QtGui import QIcon
+    from PySide6.QtWidgets import QApplication, QMessageBox
+
     _gunlugu_kur()
     log = logging.getLogger(__name__)
     log.info("%s %s baslatiliyor", UYGULAMA_ADI, UYGULAMA_SURUMU)

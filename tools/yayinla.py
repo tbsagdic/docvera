@@ -36,6 +36,7 @@ KOK = Path(__file__).resolve().parent.parent
 DIST = KOK / "dist" / "Docvera"
 EXE = DIST / "Docvera.exe"
 ISS = KOK / "tools" / "docvera.iss"
+PAKET_DENETLE_BAYRAGI = "--paket-denetle"
 
 # Inno Setup derleyicisinin olagan konumlari (winget kullanici klasorune kurar)
 ISCC_ADAYLARI = (
@@ -73,6 +74,20 @@ def paketi_denetle() -> None:
         raise SystemExit(
             "dist\\Docvera surum.py'den eski gorunuyor: paket bu commit'ten "
             "once uretilmis. paketle.bat'i yeniden calistirin."
+        )
+
+    try:
+        sonuc = subprocess.run(
+            [str(EXE), PAKET_DENETLE_BAYRAGI], cwd=DIST, timeout=60
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise SystemExit(
+            "Paket acilis denetimi 60 saniyede tamamlanmadi. Yayin durduruldu."
+        ) from exc
+    if sonuc.returncode != 0:
+        raise SystemExit(
+            "Paket Qt/UI acilis denetimini gecemedi "
+            f"(cikis kodu {sonuc.returncode}). Yayin durduruldu."
         )
 
 
