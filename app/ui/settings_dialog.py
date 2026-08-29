@@ -153,6 +153,13 @@ class AyarlarDiyalogu(QDialog):
 
         self.ocr_durumu = QLabel()
         self.ocr_durumu.setWordWrap(True)
+
+        self.ocr_kur_dugmesi = QPushButton("Eksikleri kur")
+        self.ocr_kur_dugmesi.setToolTip(
+            "Tesseract OCR ve Türkçe dil paketini uygulama kendisi indirip kurar."
+        )
+        self.ocr_kur_dugmesi.clicked.connect(self._eksikleri_kur)
+
         self._ocr_durumunu_yaz()
 
         aciklama = QLabel(
@@ -167,8 +174,13 @@ class AyarlarDiyalogu(QDialog):
         aciklama.setWordWrap(True)
         aciklama.setStyleSheet("color: #666; font-size: 11px;")
 
+        dugme_satiri = QHBoxLayout()
+        dugme_satiri.addWidget(self.ocr_kur_dugmesi)
+        dugme_satiri.addStretch(1)
+
         duzen.addWidget(self.ocr_kutusu)
         duzen.addWidget(self.ocr_durumu)
+        duzen.addLayout(dugme_satiri)
         duzen.addWidget(aciklama)
         return kutu
 
@@ -182,18 +194,37 @@ class AyarlarDiyalogu(QDialog):
                 "Tesseract OCR kurulu değil - otomatik okuma çalışmaz."
             )
             self.ocr_durumu.setStyleSheet("color: #c0392b;")
+            self.ocr_kur_dugmesi.setEnabled(True)
             return
 
         mevcut = engine.diller(self.ayarlar.tesseract_yolu)
         if "tur" in mevcut:
             self.ocr_durumu.setText(f"Hazır: {yol} (Türkçe dil paketi kurulu)")
             self.ocr_durumu.setStyleSheet("color: #1f6f43;")
+            self.ocr_kur_dugmesi.setEnabled(False)
         else:
             self.ocr_durumu.setText(
                 f"Hazır: {yol} - ancak Türkçe dil paketi yok, "
                 "isimlerdeki Ş/Ğ/İ harfleri geri kazanılamaz."
             )
             self.ocr_durumu.setStyleSheet("color: #b8860b;")
+            self.ocr_kur_dugmesi.setEnabled(True)
+
+    def _eksikleri_kur(self) -> None:
+        """Eksik bilesenleri kuran pencereyi acar."""
+        from app.kurulum.denetim import eksikler
+        from app.ui.kurulum_dialog import KurulumDiyalogu
+
+        kalan = eksikler(self.ayarlar.tesseract_yolu)
+        if not kalan:
+            QMessageBox.information(
+                self, "Eksik yok", "Gerekli bileşenlerin tümü kurulu."
+            )
+            self._ocr_durumunu_yaz()
+            return
+
+        KurulumDiyalogu(self.ayarlar, kalan, self).exec()
+        self._ocr_durumunu_yaz()
 
     def _drive_kutusu(self) -> QGroupBox:
         kutu = QGroupBox("Google Drive")

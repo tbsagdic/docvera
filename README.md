@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
 ![Python](https://img.shields.io/badge/python-3.10%20--%203.14-3776AB)
 ![Arayüz](https://img.shields.io/badge/aray%C3%BCz-PySide6-41CD52)
-![Testler](https://img.shields.io/badge/testler-195%20ge%C3%A7iyor-2EA043)
+![Testler](https://img.shields.io/badge/testler-211%20ge%C3%A7iyor-2EA043)
 
 </div>
 
@@ -30,6 +30,7 @@ Dövizciye gelen müşterinin **ad soyad, TC kimlik no, doğum tarihi** bilgisin
 | **Çevrimdışı çalışır** | İnternet yoksa arşiv yine yazılır, Drive yüklemeleri kuyruğa alınır |
 | **Düzeni bozmaz** | Klasör ağacı elle tutulan mevcut arşivle birebir aynıdır |
 | **Kurulum istemez** | Tek klasör `.exe`; hedef makinede Python gerekmez |
+| **Eksiğini kendi kurar** | Tesseract ve Türkçe dil paketi eksikse tek düğmeyle indirilip kurulur |
 
 ### Akış
 
@@ -71,7 +72,7 @@ Klasör düzeni elle tutulan mevcut arşivle birebir aynıdır:
 - Windows 10/11
 - Python 3.10 – 3.14 (geliştirme için; son kullanıcıya `.exe` verilir)
 - WIA uyumlu bir tarayıcı (Windows'un tanıdığı hemen her tarayıcı/MFP)
-- Tesseract OCR + Türkçe dil paketi (otomatik kimlik okuma için; opsiyonel)
+- Tesseract OCR + Türkçe dil paketi — **uygulama gerekirse kendisi kurar**, elle indirmeye gerek yok
 
 ### Geliştirme ortamı
 
@@ -154,16 +155,45 @@ Ek korumalar:
   `BAŞLIOĞLU` yazımı geri kazanılmaya çalışılır; yalnızca ASCII'ye
   indirgendiğinde MRZ ile birebir aynı olan sonuç kabul edilir.
 
-### Tesseract kurulumu (gerekli)
+### Tesseract kurulumu — uygulama kendisi yapar
 
-OCR **tamamen bu bilgisayarda** çalışır — kimlik görüntüsü hiçbir bulut
-servisine gönderilmez. Bu, KVKK açısından bilinçli bir tercihtir.
+OCR **tamamen bu bilgisayarda** çalışır; kimlik görüntüsü hiçbir bulut servisine
+gönderilmez. Bu, KVKK açısından bilinçli bir tercihtir.
 
-1. https://github.com/UB-Mannheim/tesseract/wiki adresinden Tesseract'ı kurun
-2. Kurulum sırasında **Türkçe (tur)** dil paketini seçin
-3. Ayarlar penceresindeki *Otomatik Kimlik Okuma* bölümü durumu gösterir
+Kasiyerin kurulumla uğraşması gerekmez. Docvera açılışta eksik bileşenleri kendisi
+tespit eder ve tek düğmelik bir pencere gösterir:
 
-Tesseract kurulu değilse uygulama normal çalışır, yalnızca otomatik doldurma
+```
+Eksik bileşenler
+─────────────────────────────────────────────
+Tesseract OCR
+  Kimlikten TC, ad soyad ve doğum tarihi otomatik
+  okunamaz; kasiyer her alanı elle yazmak zorunda kalır.
+
+Türkçe dil paketi
+  İsimlerdeki Ş, Ğ, İ, Ö, Ü, Ç harfleri geri kazanılamaz.
+
+                            [ Sonra ]  [ Kur ]
+```
+
+**Kur**'a basıldığında:
+
+| Bileşen | Nasıl kurulur | Yönetici izni |
+|---|---|---|
+| Tesseract OCR | Önce **winget** (`UB-Mannheim.TesseractOCR`) denenir — indirdiği dosyanın SHA-256 özetini Microsoft'un deposundaki paket özetiyle kendisi doğrular. winget yoksa resmî UB-Mannheim dağıtımından HTTPS ile indirilip sessiz kurulur. | Windows bir kez sorar, "Evet" demek yeterli |
+| Türkçe + İngilizce dil paketi | `tessdata` deposundan `%LOCALAPPDATA%\Docvera\tessdata\` klasörüne indirilir ve Tesseract'a `--tessdata-dir` ile gösterilir | Gerekmez |
+
+Dil paketlerinin Program Files yerine kullanıcı klasörüne inmesi bilinçlidir:
+böylece dil eklemek için yönetici yetkisi gerekmez.
+
+Güvenlik tarafında indirme adresi **HTTPS ve beyaz listedeki sunucularla** sınırlıdır;
+indirilen kurulum dosyası çalıştırılmadan önce boyut ve PE imzası yönünden denetlenir.
+
+Aynı pencere **Ayarlar → Otomatik Kimlik Okuma → Eksikleri kur** ile istendiği zaman
+açılabilir. *Bu uyarıyı bir daha gösterme* işaretlenirse açılışta sorulmaz; ayar
+`kurulum_sorma` alanında tutulur.
+
+Tesseract kurulu değilse uygulama yine normal çalışır, yalnızca otomatik doldurma
 devre dışı kalır.
 
 > **İpucu:** MRZ'nin okunabilmesi için kimliğin **arka yüzünü** en az 300 DPI
@@ -394,6 +424,9 @@ app/
 │   ├── belge.py         MRZ'siz belgelerden TC/tarih çıkarımı (kanıt puanlı)
 │   ├── engine.py        Tesseract sarmalayıcı (cihaz üzerinde, çevrimdışı)
 │   └── kimlik.py        Görüntü → MRZ → doğrulanmış kimlik boru hattı
+├── kurulum/
+│   ├── denetim.py       Eksik dış bileşen tespiti (Tesseract, dil paketi)
+│   └── tesseract.py     winget ya da doğrudan indirme ile otomatik kurulum
 ├── drive/
 │   ├── auth.py          OAuth + DPAPI ile şifreli jeton
 │   ├── client.py        Klasör ağacı (önbellekli) + dosya yükleme

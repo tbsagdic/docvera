@@ -94,6 +94,15 @@ def main() -> int:
             + "\n• ".join(sorunlar),
         )
 
+    # Eksik dis bilesen varsa kasiyer ugrasmadan kurulmasi teklif edilir
+    if ayarlar.otomatik_kimlik_oku and not ayarlar.kurulum_sorma:
+        from app.ui.kurulum_dialog import eksikleri_sor
+
+        try:
+            eksikleri_sor(ayarlar, pencere)
+        except Exception:  # denetim hatasi uygulamanin acilmasini engellemesin
+            log.exception("Eksik bilesen denetimi basarisiz")
+
     kod = uygulama.exec()
 
     if kuyruk is not None:

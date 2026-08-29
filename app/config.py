@@ -38,6 +38,17 @@ def gecici_klasor() -> Path:
     return Path(taban) / UYGULAMA_ADI / "tmp"
 
 
+def dil_klasoru() -> Path:
+    """Uygulamanin indirdigi Tesseract dil paketlerinin klasoru.
+
+    Program Files altina yazmak yonetici yetkisi ister; dil paketleri bu
+    yuzden kullanici klasorunde tutulur ve Tesseract'a --tessdata-dir ile
+    gosterilir.
+    """
+    taban = os.environ.get("LOCALAPPDATA") or str(Path.home())
+    return Path(taban) / UYGULAMA_ADI / "tessdata"
+
+
 @dataclass
 class Ayarlar:
     """Uygulama ayarlari."""
@@ -62,6 +73,12 @@ class Ayarlar:
     # --- Otomatik kimlik okuma (OCR) ---
     otomatik_kimlik_oku: bool = True
     tesseract_yolu: str = ""  # bos ise PATH ve olagan kurulum konumlari denenir
+    kurulum_sorma: bool = False  # eksik bilesen uyarisi bir daha gosterilmesin
+
+    # --- Guncelleme ---
+    guncelleme_otomatik_denetle: bool = True
+    guncelleme_son_denetim: str = ""  # ISO tarih-saat; gunde bir sorgu icin
+    guncelleme_atlanan_surum: str = ""  # kullanicinin "atla" dedigi surum
 
     # --- Diger ---
     pdf_olustur: bool = True

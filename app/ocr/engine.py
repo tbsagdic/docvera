@@ -70,6 +70,31 @@ def kullanilabilir_mi(ayar_yolu: str = "") -> bool:
         return False
 
 
+def _indirilen_diller() -> set[str]:
+    """Uygulamanin kullanici klasorune indirdigi dil paketleri."""
+    from app.config import dil_klasoru
+
+    try:
+        return {yol.stem for yol in dil_klasoru().glob("*.traineddata")}
+    except OSError:
+        return set()
+
+
+def _tessdata_argumani(dil: str) -> list[str]:
+    """Dil paketi uygulama tarafindan indirildiyse Tesseract'i oraya yonlendirir.
+
+    Kurulum sirasinda Program Files'a yazmak yonetici yetkisi isterdi; dil
+    paketleri bu yuzden kullanici klasorunde durur ve her cagride acikca
+    gosterilir.
+    """
+    from app.config import dil_klasoru
+
+    klasor = dil_klasoru()
+    if (klasor / f"{dil}.traineddata").is_file():
+        return ["--tessdata-dir", str(klasor)]
+    return []
+
+
 def diller(ayar_yolu: str = "") -> list[str]:
     """Kurulu Tesseract dil paketlerini dondurur."""
     try:
@@ -84,7 +109,10 @@ def diller(ayar_yolu: str = "") -> list[str]:
         log.warning("Tesseract dilleri listelenemedi: %s", exc)
         return []
     satirlar = sonuc.stdout.splitlines()[1:]  # ilk satir baslik
-    return [s.strip() for s in satirlar if s.strip()]
+    kurulu = {s.strip() for s in satirlar if s.strip()}
+    # Uygulamanin indirdigi paketler Tesseract'in kendi klasorunde gorunmez
+    kurulu.update(_indirilen_diller())
+    return sorted(kurulu)
 
 
 def metin_oku(
@@ -112,6 +140,7 @@ def metin_oku(
             "--psm", str(psm),
             "-l", dil,
         ]
+        komut += _tessdata_argumani(dil)
         if beyaz_liste:
             komut += ["-c", f"tessedit_char_whitelist={beyaz_liste}"]
         # Sozluk duzeltmeleri MRZ'de zararlidir: gecerli bir kodu "duzeltip"
