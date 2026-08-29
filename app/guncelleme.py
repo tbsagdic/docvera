@@ -463,18 +463,41 @@ def kur(zip_yolu: str | Path, yayin: Yayin) -> Path:
         errors="replace",
     )
 
-    # Betik uygulamadan bagimsiz yasamali: uygulama kapaninca olmemeli
-    bayraklar = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(
-        subprocess, "CREATE_NEW_PROCESS_GROUP", 0
-    )
-    subprocess.Popen(
-        ["cmd", "/c", str(betik)],
-        cwd=str(ust),
-        creationflags=bayraklar,
-        close_fds=True,
-    )
+    _betigi_baslat(betik, ust)
     log.info("Guncelleme betigi baslatildi: %s", betik)
     return betik
+
+
+def _betigi_baslat(betik: Path, calisma_klasoru: Path) -> None:
+    """Betigi uygulamadan bagimsiz bir surec olarak baslatir.
+
+    Uygulama bir is nesnesi (job object) icinde calistiriliyorsa - bazi
+    baslatici, uzaktan yonetim ve kiosk yazilimlari boyle yapar - uygulama
+    kapandigi anda cocuk surecler de oldurulur ve guncelleme yarim kalirdi.
+    Bu yuzden once is nesnesinden ayrilmayi deneriz; izin verilmiyorsa
+    olagan yolla baslatiriz.
+    """
+    temel = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(
+        subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+    )
+    ayril = getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0x01000000)
+
+    son_hata: OSError | None = None
+    for ek in (ayril, 0):
+        try:
+            subprocess.Popen(
+                ["cmd", "/c", str(betik)],
+                cwd=str(calisma_klasoru),
+                creationflags=temel | ek,
+                close_fds=True,
+            )
+        except OSError as exc:  # is nesnesi ayrilmaya izin vermiyor
+            son_hata = exc
+            continue
+        else:
+            return
+
+    raise GuncellemeHatasi(f"Kurulum betiği başlatılamadı: {son_hata}")
 
 
 # --- Kurulum sonrasi geri bildirim -----------------------------------------
