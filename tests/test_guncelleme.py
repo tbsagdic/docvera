@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import re
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -298,6 +300,17 @@ def test_yarim_kalan_kurulum_tespit_edilir(veri_klasoru, monkeypatch):
     assert guncelleme.yarim_kalan_kurulum() is True
     assert list(klasor.iterdir()) == []  # kalintilar temizlendi
     assert guncelleme.yarim_kalan_kurulum() is False  # ikinci kez uyarmaz
+
+
+def test_kurulum_kaydi_sihirbazla_ayni_guid():
+    """Kaldirma kaydinin GUID'i kurulum sihirbazinin AppId'siyle ayni olmali.
+
+    Ayrisirlarsa guncelleme "Programlar ve Ozellikler" kaydini bulamaz ve
+    listede eski surum numarasi kalir - sessiz, fark edilmesi zor bir kusur.
+    """
+    iss = Path("tools/docvera.iss").read_text(encoding="utf-8")
+    guid = re.search(r"AppId=\{\{([0-9A-Fa-f-]+)\}", iss).group(1)
+    assert guid in guncelleme.KURULUM_KAYDI
 
 
 def test_kur_izin_yoksa_indirmeden_once_durur(monkeypatch):

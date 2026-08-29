@@ -40,6 +40,13 @@ API_ADRESI = f"https://api.github.com/repos/{DEPO}/releases/latest"
 YAYIN_SAYFASI = f"https://github.com/{DEPO}/releases/latest"
 EXE_ADI = "Docvera.exe"
 
+# Kurulum sihirbazinin (tools/docvera.iss) actigi kaldirma kaydi. Guncelleme
+# surum numarasini burada da tazeler; AppId ile birebir ayni olmali.
+KURULUM_KAYDI = (
+    r"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall"
+    r"\{7F3A6C21-9E44-4C2B-A6D1-2C5B0E8D4F17}_is1"
+)
+
 _KULLANICI_ARACISI = f"Docvera/{UYGULAMA_SURUMU} (+https://github.com/{DEPO})"
 _SHA_KALIBI = re.compile(r"sha-?256[^0-9a-fA-F]{0,12}([0-9a-fA-F]{64})", re.IGNORECASE)
 
@@ -392,7 +399,15 @@ if errorlevel 1 (
 
 rem Kurulum sihirbaziyla kurulduysa kaldirici yeni pakette yoktur; silinirse
 rem "Programlar ve Ozellikler" girdisi calismaz hale gelir.
-if exist "%YEDEK%\\unins000.exe" copy /y "%YEDEK%\\unins000.*" "%HEDEF%\\" >nul 2>&1
+if exist "%YEDEK%\\unins000.exe" (
+    copy /y "%YEDEK%\\unins000.*" "%HEDEF%\\" >nul 2>&1
+    rem Ayni listede surum numarasi da guncellenmeli; aksi halde kullanici
+    rem "Programlar ve Ozellikler"de eski surumu gorur.
+    reg query "{kayit}" >nul 2>&1 && (
+        reg add "{kayit}" /v DisplayVersion /t REG_SZ /d "{surum}" /f >nul 2>&1
+        reg add "{kayit}" /v DisplayName /t REG_SZ /d "Docvera {surum}" /f >nul 2>&1
+    )
+)
 
 rmdir /s /q "%YEDEK%" 2>nul
 echo TAMAM {surum}>"%SONUC%"
@@ -455,6 +470,7 @@ def kur(zip_yolu: str | Path, yayin: Yayin) -> Path:
             yedek=yedek,
             sonuc=sonuc,
             gunluk=veri_klasoru() / "guncelleme.log",
+            kayit=KURULUM_KAYDI,
             surum=yayin.surum,
             pid=pid,
             exe=EXE_ADI,
