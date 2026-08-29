@@ -369,6 +369,78 @@ Her revizyon aynı numarayla etiketlenir ve
 
 ---
 
+## Güncelleme
+
+Uygulama kendini günceller; son kullanıcının dosya indirmesi, klasör kopyalaması
+ya da kurulum çalıştırması gerekmez.
+
+### Kullanıcı tarafı
+
+| Nerede | Ne yapar |
+|---|---|
+| **Yardım > Güncellemeleri denetle** | Hemen sorgular, sonucu durum çubuğunda söyler |
+| **Ayarlar > Güncelleme** | Otomatik denetimi açar/kapatır, atlanan sürümü geri alır |
+| Otomatik denetim | Açılıştan 5 saniye sonra, **günde en fazla bir kez** sorgular |
+
+Yeni sürüm bulununca sürüm notlarıyla birlikte bir pencere açılır: **Şimdi kur**,
+**Daha sonra** ya da **Bu sürümü atla**. Atlanan sürüm bir daha hatırlatılmaz;
+sonraki sürümler yine bildirilir.
+
+Kurulum sırasında indirme yüzdesi gösterilir, uygulama kapanır ve yeni sürümle
+kendiliğinden açılır. Ayarlar, arşiv, veritabanı ve Drive bağlantısı `%APPDATA%`
+altında durduğu için güncellemeden etkilenmez.
+
+### Nasıl çalışıyor
+
+1. `https://api.github.com/repos/tbsagdic/docvera/releases/latest` sorgulanır
+   (anonim; hiçbir kullanıcı bilgisi gönderilmez).
+2. Etiket **sayısal** karşılaştırılır: `1.0.10 > 1.0.9`. Ayrıştırılamayan bir
+   etiket asla güncelleme sayılmaz.
+3. Paket indirilir; **boyutu ve SHA-256 özeti** yayın notundaki (ya da GitHub
+   API'nin `digest` alanındaki) değerle karşılaştırılır. Tutmazsa kurulum
+   yapılmaz, indirilen dosya silinir.
+4. Paket, çalışan uygulamanın **yanına** açılır ve uygulamadan bağımsız bir cmd
+   betiği başlatılır — çalışan `.exe` kendi klasörünün üzerine yazamaz.
+5. Betik uygulamanın kapanmasını bekler, sonra `move` ile eski klasörü yedeğe,
+   yeni klasörü yerine alır. `move` aynı diskte anlık bir işlemdir: yarım kalmış
+   bir kopyalama bozuk kurulum bırakmaz. Yeni klasör yerine konamazsa **eski
+   sürüm geri alınır**.
+6. Sonuç `%APPDATA%\Docvera\guncelleme_sonuc.txt` dosyasına yazılır; uygulama
+   açılışta bunu okuyup kullanıcıya söyler ve dosyayı siler. Sessizce başarısız
+   olan kurulum en kötü durumdur — kullanıcı güncellediğini sanıp eski sürümde
+   çalışmaya devam eder.
+
+Kurulum günlüğü: `%APPDATA%\Docvera\guncelleme.log`.
+
+**Otomatik kurulumun yapılamadığı durumlar** kullanıcıya açıkça söylenir ve yayın
+sayfasına yönlendirilir: kaynak koddan çalıştırma, uygulama klasörünün üst
+dizinine yazma izni olmaması (izin, indirmeden **önce** denetlenir) ve
+kaydedilmemiş taranmış sayfa bulunması (kurulum uygulamayı kapatacağı için).
+
+### Sürüm yayımlama
+
+```bat
+paketle.bat          rem dist\Docvera\ üretir
+yayinla.bat          rem zipler, SHA-256 hesaplar, GitHub'a yayımlar
+```
+
+[`tools/yayinla.py`](tools/yayinla.py) tam olarak güncelleme sisteminin beklediği
+biçimi üretir:
+
+- etiket `v<sürüm>`
+- ek `Docvera-<sürüm>-win64.zip` (kökünde tek bir `Docvera\` klasörü)
+- yayın notlarında `SHA-256: <özet>` satırı
+
+Paket `app/surum.py`'den eskiyse betik durur; böylece yanlış sürüm numarasıyla
+etiketlenmiş bir paket yayımlanamaz. `--sadece-zip` yayımlamadan paketler,
+`--taslak` taslak yayın açar. GitHub CLI kurulu değilse elle yayımlama adımları
+yazdırılır.
+
+> Yayına `.zip` eki koymayı unutursanız kullanıcılar "kurulabilir paket
+> eklenmemiş" uyarısıyla yayın sayfasına yönlendirilir; sessiz bir hata oluşmaz.
+
+---
+
 ## Dosya konumları
 
 | Ne | Nerede |
@@ -379,6 +451,8 @@ Her revizyon aynı numarayla etiketlenir ve
 | Drive jetonu | `%APPDATA%\Docvera\token.bin` (DPAPI ile şifreli) |
 | OAuth istemcisi | `%APPDATA%\Docvera\credentials.json` |
 | Geçici taramalar | `%LOCALAPPDATA%\Docvera\tmp\` |
+| İndirilen güncelleme | `%APPDATA%\Docvera\guncelleme\` (kurulumdan sonra silinir) |
+| Güncelleme günlüğü | `%APPDATA%\Docvera\guncelleme.log` |
 | Arşiv | Ayarlardaki kök klasör (varsayılan `C:\DocveraArsiv`) |
 
 > Kök klasörü masaüstü yerine `C:\DocveraArsiv` gibi **kısa** bir yolda tutun.
@@ -411,6 +485,7 @@ app/
 ├── db.py                SQLite: müşteri, kayıt, sayfa, kuyruk, denetim
 ├── validation.py        TC algoritması, Türkçe'ye duyarlı harf dönüşümü
 ├── surum.py             Üretilen sürüm numarası (elle düzenlenmez)
+├── guncelleme.py        GitHub yayın sorgusu, doğrulama, yerinde kurulum
 ├── scanner/
 │   ├── base.py          Arka uç arayüzü (UI, WIA'yı doğrudan tanımaz)
 │   ├── wia.py           WIA COM uygulaması
@@ -432,6 +507,8 @@ app/
 │   ├── client.py        Klasör ağacı (önbellekli) + dosya yükleme
 │   └── queue.py         Arka plan kuyruğu + üstel geri çekilme
 └── ui/                  PySide6 arayüzü
+    ├── guncelleme_dialog.py  Sürüm penceresi + otomatik denetim
+    └── kurulum_dialog.py     Eksik bileşen penceresi
 ```
 
 Tarama ve Drive yüklemeleri **ayrı iş parçacıklarında** çalışır; arayüz hiçbir

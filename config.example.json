@@ -10,5 +10,6 @@
   "drive_kok_klasor_id": "",
   "drive_kok_adi": "DOCVERA ARSIV",
   "drive_azami_deneme": 8,
+  "guncelleme_otomatik_denetle": true,
   "pdf_olustur": true
 }

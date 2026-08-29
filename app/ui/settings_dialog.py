@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -74,6 +74,7 @@ class AyarlarDiyalogu(QDialog):
         duzen.addWidget(self._tarama_kutusu())
         duzen.addWidget(self._ocr_kutusu())
         duzen.addWidget(self._drive_kutusu())
+        duzen.addWidget(self._guncelleme_kutusu())
 
         dugmeler = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
@@ -278,6 +279,76 @@ class AyarlarDiyalogu(QDialog):
         duzen.addWidget(kurulum)
         return kutu
 
+    def _guncelleme_kutusu(self) -> QGroupBox:
+        kutu = QGroupBox("Güncelleme")
+        duzen = QVBoxLayout(kutu)
+
+        self.guncelleme_kutusu = QCheckBox(
+            "Yeni sürümleri kendiliğinden denetle (günde bir kez)"
+        )
+        self.guncelleme_kutusu.setChecked(self.ayarlar.guncelleme_otomatik_denetle)
+
+        self.guncelleme_durumu = QLabel()
+        self.guncelleme_durumu.setWordWrap(True)
+        self._guncelleme_durumunu_yaz()
+
+        denetle_dugmesi = QPushButton("Şimdi denetle")
+        denetle_dugmesi.setToolTip(
+            "Ayarlar kaydedilir, pencere kapanır ve denetim hemen başlar."
+        )
+        denetle_dugmesi.clicked.connect(self._simdi_denetle)
+
+        self.hatirlat_dugmesi = QPushButton("Atlanan sürümü yeniden hatırlat")
+        self.hatirlat_dugmesi.clicked.connect(self._atlamayi_geri_al)
+        self.hatirlat_dugmesi.setVisible(bool(self.ayarlar.guncelleme_atlanan_surum))
+
+        satir = QHBoxLayout()
+        satir.addWidget(denetle_dugmesi)
+        satir.addWidget(self.hatirlat_dugmesi)
+        satir.addStretch(1)
+
+        aciklama = QLabel(
+            "Yeni sürüm GitHub'daki resmî yayın sayfasından indirilir, indirilen "
+            "paketin SHA-256 özeti doğrulanır ve kurulum onayınızdan sonra yapılır. "
+            "Ayarlarınız, arşiviniz ve Drive bağlantınız güncellemeden etkilenmez."
+        )
+        aciklama.setWordWrap(True)
+        aciklama.setStyleSheet("color: #666; font-size: 11px;")
+
+        duzen.addWidget(self.guncelleme_kutusu)
+        duzen.addWidget(self.guncelleme_durumu)
+        duzen.addLayout(satir)
+        duzen.addWidget(aciklama)
+        return kutu
+
+    def _guncelleme_durumunu_yaz(self) -> None:
+        from app.config import UYGULAMA_SURUMU
+
+        metin = f"Kullanılan sürüm: {UYGULAMA_SURUMU}"
+        atlanan = self.ayarlar.guncelleme_atlanan_surum
+        if atlanan:
+            metin += f" - {atlanan} sürümü atlandı, hatırlatılmıyor."
+        self.guncelleme_durumu.setText(metin)
+        self.guncelleme_durumu.setStyleSheet("color: #666; font-size: 11px;")
+
+    def _atlamayi_geri_al(self) -> None:
+        self.ayarlar.guncelleme_atlanan_surum = ""
+        self.hatirlat_dugmesi.setVisible(False)
+        self._guncelleme_durumunu_yaz()
+
+    def _simdi_denetle(self) -> None:
+        """Ayarlari kaydedip denetimi ana pencereye devreder.
+
+        Denetim ana pencerede yurutulur: kurulum uygulamayi kapatacagi icin
+        acik bir ayar penceresinin arkada kalmasi kapanmayi engellerdi.
+        """
+        pencere = self.parent()
+        self._kaydet()
+        if self.result() != QDialog.DialogCode.Accepted:
+            return  # ayarlarda sorun var, kaydedilemedi
+        if hasattr(pencere, "guncellemeleri_denetle"):
+            QTimer.singleShot(0, pencere.guncellemeleri_denetle)
+
     # --- Eylemler ---------------------------------------------------------
 
     def _klasor_sec(self) -> None:
@@ -345,6 +416,7 @@ class AyarlarDiyalogu(QDialog):
         self.ayarlar.pdf_olustur = self.pdf_kutusu.isChecked()
         self.ayarlar.otomatik_kimlik_oku = self.ocr_kutusu.isChecked()
         self.ayarlar.drive_etkin = self.drive_kutusu.isChecked()
+        self.ayarlar.guncelleme_otomatik_denetle = self.guncelleme_kutusu.isChecked()
 
         sorunlar = self.ayarlar.dogrula()
         if sorunlar:
