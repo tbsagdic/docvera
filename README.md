@@ -335,8 +335,19 @@ aynı kök klasör altında birleşir.
     --name Docvera --paths . app\__main__.py
 ```
 
-`dist\Docvera\` klasörü olduğu gibi hedef makineye kopyalanır; Python kurulumu
+`dist\Docvera\` klasörü olduğu gibi hedef makineye kopyalanabilir; Python kurulumu
 gerektirmez. (Python 3.14 + PySide6 + PyInstaller birleşimi bu projede doğrulandı.)
+
+Son kullanıcıya bu klasör **elden verilmez**: [`tools/docvera.iss`](tools/docvera.iss)
+ile bir **kurulum sihirbazı** (Inno Setup) derlenir — `Docvera-<sürüm>-kurulum.exe`.
+Sihirbaz Başlat menüsüne (isteğe bağlı masaüstüne) kısayol koyar, "Programlar ve
+Özellikler" altında kaldırma girdisi oluşturur ve kurulum bitince uygulamayı açar.
+
+Kurulum yeri `%LOCALAPPDATA%\Programs\Docvera` ve **yönetici şifresi istenmez**.
+Bu bilinçli bir tercih: uygulama kendini güncellerken kendi klasörünün üzerine
+yazabilmeli. Program Files'a kurulsaydı her güncelleme UAC isterdi ve şube
+bilgisayarındaki kasiyer yönetici şifresini bilmediği için güncelleme hiç
+yapılamazdı.
 
 `--onefile` yerine `--onedir` tercih edilir: tek dosyalı paket her açılışta kendini
 geçici klasöre açtığı için PySide6 ile başlangıç belirgin şekilde yavaşlar.
@@ -371,8 +382,9 @@ Her revizyon aynı numarayla etiketlenir ve
 
 ## Güncelleme
 
-Uygulama kendini günceller; son kullanıcının dosya indirmesi, klasör kopyalaması
-ya da kurulum çalıştırması gerekmez.
+İlk kurulum `Docvera-<sürüm>-kurulum.exe` ile yapılır (bkz. [Dağıtım](#dağıtım-exe));
+sonrasında uygulama kendini günceller — kullanıcının bir daha dosya indirmesi,
+klasör kopyalaması ya da kurulum çalıştırması gerekmez.
 
 ### Kullanıcı tarafı
 
@@ -424,12 +436,31 @@ paketle.bat          rem dist\Docvera\ üretir
 yayinla.bat          rem zipler, SHA-256 hesaplar, GitHub'a yayımlar
 ```
 
-[`tools/yayinla.py`](tools/yayinla.py) tam olarak güncelleme sisteminin beklediği
-biçimi üretir:
+[`tools/yayinla.py`](tools/yayinla.py) her yayında **iki dosya** üretir:
+
+| Dosya | Kim indirir |
+|---|---|
+| `Docvera-<sürüm>-kurulum.exe` | Son kullanıcı — ilk kurulum (Inno Setup sihirbazı) |
+| `Docvera-<sürüm>-win64.zip` | Uygulamanın kendisi — güncelleme paketi |
+
+Güncelleme neden zip? Kurulum sihirbazı çalıştırılırken pencere açar ve etkileşim
+bekler; güncelleme ise sessiz olmalı. Zip, `move` ile yerine geçtiği için hızlı,
+etkileşimsiz ve geri alınabilir. Yayın biçimi:
 
 - etiket `v<sürüm>`
-- ek `Docvera-<sürüm>-win64.zip` (kökünde tek bir `Docvera\` klasörü)
-- yayın notlarında `SHA-256: <özet>` satırı
+- zip'in kökünde tek bir `Docvera\` klasörü
+- yayın notlarındaki **ilk** `SHA-256:` satırı zip'e aittir (güncelleme bunu okur)
+
+Inno Setup kurulu değilse sihirbaz üretilmez, yayın yalnızca zip ile çıkar ve
+betik bunu bildirir:
+
+```bat
+winget install --id JRSoftware.InnoSetup
+```
+
+> Güncelleme, kurulumla gelen `unins000.exe` / `unins000.dat` dosyalarını yeni
+> klasöre taşır. Aksi halde güncellenen bir kurulumun "Programlar ve Özellikler"
+> girdisi çalışmaz hale gelirdi.
 
 Paket `app/surum.py`'den eskiyse betik durur; böylece yanlış sürüm numarasıyla
 etiketlenmiş bir paket yayımlanamaz. `--sadece-zip` yayımlamadan paketler,

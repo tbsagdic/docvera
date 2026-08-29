@@ -276,6 +276,8 @@ def test_kur_betigi_uretir_ve_baslatir(tmp_path, monkeypatch):
     icerik = betik.read_text(encoding="ascii")
     assert str(kurulum) in icerik  # hedef klasor
     assert "move" in icerik and "Docvera.exe" in icerik
+    # Kurulum sihirbaziyla gelen kaldirici yeni pakette yok; korunmali
+    assert "unins000" in icerik
     assert baslatilan["komut"][:2] == ["cmd", "/c"]
     # Paket, hedefin yaninda acilmis olmali (move ayni diskte anlik olsun diye)
     assert (kurulum.parent / f".docvera_paket_{os.getpid()}").is_dir()

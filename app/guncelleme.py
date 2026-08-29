@@ -390,6 +390,10 @@ if errorlevel 1 (
     goto temizle
 )
 
+rem Kurulum sihirbaziyla kurulduysa kaldirici yeni pakette yoktur; silinirse
+rem "Programlar ve Ozellikler" girdisi calismaz hale gelir.
+if exist "%YEDEK%\\unins000.exe" copy /y "%YEDEK%\\unins000.*" "%HEDEF%\\" >nul 2>&1
+
 rmdir /s /q "%YEDEK%" 2>nul
 echo TAMAM {surum}>"%SONUC%"
 echo [%date% %time%] kurulum tamamlandi >>"%GUNLUK%"
