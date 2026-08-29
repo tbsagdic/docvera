@@ -412,7 +412,10 @@ altında durduğu için güncellemeden etkilenmez.
    API'nin `digest` alanındaki) değerle karşılaştırılır. Tutmazsa kurulum
    yapılmaz, indirilen dosya silinir.
 4. Paket, çalışan uygulamanın **yanına** açılır ve uygulamadan bağımsız bir cmd
-   betiği başlatılır — çalışan `.exe` kendi klasörünün üzerine yazamaz.
+   betiği başlatılır — çalışan `.exe` kendi klasörünün üzerine yazamaz. Betik
+   kendi konsol penceresinde çalışır ("Docvera guncelleniyor"): hem kullanıcı
+   ne olduğunu görüp uygulamayı yeniden açmaya çalışmaz, hem de konsolsuz
+   başlatılan `cmd` ilk çıktı satırında ölmez.
 5. Betik uygulamanın kapanmasını bekler, sonra `move` ile eski klasörü yedeğe,
    yeni klasörü yerine alır. `move` aynı diskte anlık bir işlemdir: yarım kalmış
    bir kopyalama bozuk kurulum bırakmaz. Yeni klasör yerine konamazsa **eski
@@ -420,7 +423,10 @@ altında durduğu için güncellemeden etkilenmez.
 6. Sonuç `%APPDATA%\Docvera\guncelleme_sonuc.txt` dosyasına yazılır; uygulama
    açılışta bunu okuyup kullanıcıya söyler ve dosyayı siler. Sessizce başarısız
    olan kurulum en kötü durumdur — kullanıcı güncellediğini sanıp eski sürümde
-   çalışmaya devam eder.
+   çalışmaya devam eder. Bu yüzden ikinci bir savunma var: sonuç dosyası yokken
+   kurulum betiği kalıntısı duruyorsa betik hiç çalışamamış demektir (güvenlik
+   yazılımı, kapatılan oturum...); uygulama bunu da bildirir ve yüzlerce
+   megabaytlık açılmış paket kalıntısını temizler.
 
 Kurulum günlüğü: `%APPDATA%\Docvera\guncelleme.log`.
 
