@@ -137,26 +137,31 @@ class MusteriDetayDiyalogu(QDialog):
     # --- Doldurma ---------------------------------------------------------
 
     def yenile(self) -> None:
-        musteri = self.vt.musteri_bul(self.tc)
-        ad_soyad = (
-            f"{musteri['ad']} {musteri['soyad']}" if musteri is not None else self.tc
-        )
+        ad_soyad, dogum = self._kimlik_bilgisi()
         kayitlar = musteri_kayitlari(self.ayarlar.kok_klasor, self.tc, self.vt)
 
-        if musteri is None and kayitlar:
-            # Kayit baska bir bilgisayarda alinmis: adi rehberden ogren
-            from app.storage import rehber
-
-            girdi = rehber.musteri_getir(self.ayarlar.kok_klasor, self.tc) or {}
-            ad_soyad = f"{girdi.get('ad', '')} {girdi.get('soyad', '')}".strip() or self.tc
-
         self.baslik.setText(ad_soyad)
-        self.ozet.setText(self._ozet_metni(musteri, kayitlar))
+        self.ozet.setText(self._ozet_metni(dogum, kayitlar))
         self._agaci_doldur(kayitlar)
 
-    def _ozet_metni(self, musteri, kayitlar: list[MusteriKaydi]) -> str:
+    def _kimlik_bilgisi(self) -> tuple[str, str | None]:
+        """(ad soyad, dogum tarihi) - once yerel veritabani, sonra arsiv rehberi.
+
+        Kayit baska bir bilgisayarda alinmis olabilir; o zaman musteri bu
+        veritabaninda yoktur ama arsivdeki rehberde vardir.
+        """
+        musteri = self.vt.musteri_bul(self.tc)
+        if musteri is not None:
+            return f"{musteri['ad']} {musteri['soyad']}", musteri["dogum_tarihi"]
+
+        from app.storage import rehber
+
+        girdi = rehber.musteri_getir(self.ayarlar.kok_klasor, self.tc) or {}
+        ad_soyad = f"{girdi.get('ad', '')} {girdi.get('soyad', '')}".strip()
+        return ad_soyad or self.tc, girdi.get("dogum_tarihi")
+
+    def _ozet_metni(self, dogum: str | None, kayitlar: list[MusteriKaydi]) -> str:
         parcalar = [f"TC: {self.tc}"]
-        dogum = musteri["dogum_tarihi"] if musteri is not None else None
         if dogum:
             try:
                 gun = _dt.date.fromisoformat(dogum)
