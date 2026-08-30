@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.storage import rehber
-from app.validation import tr_lower
+from app.validation import arama_anahtari
 
 
 @dataclass(frozen=True)
@@ -109,20 +109,26 @@ def musteri_ozetleri(kok: str | Path, vt=None) -> list[MusteriOzeti]:
         )
         for girdi in birlesik.values()
     ]
-    ozetler.sort(key=lambda m: (m.son_kayit or "", tr_lower(m.tam_ad)), reverse=True)
+    ozetler.sort(
+        key=lambda m: (m.son_kayit or "", arama_anahtari(m.tam_ad)), reverse=True
+    )
     return ozetler
 
 
 def ozet_ara(ozetler: list[MusteriOzeti], metin: str) -> list[MusteriOzeti]:
-    """TC veya ad/soyad parcasiyla suzer (Turkce buyuk/kucuk harfe duyarsiz)."""
+    """TC veya ad/soyad parcasiyla suzer.
+
+    Karsilastirma katlanmis bicim uzerinden yapilir: kasiyer 'yilmaz' yazinca
+    'YILMAZ' kaydi da gelir (bkz. app.validation.arama_anahtari).
+    """
     metin = (metin or "").strip()
     if not metin:
         return list(ozetler)
-    aranan = tr_lower(metin)
+    aranan = arama_anahtari(metin)
     return [
         ozet
         for ozet in ozetler
-        if aranan in tr_lower(ozet.tam_ad) or aranan in ozet.tc
+        if aranan in arama_anahtari(ozet.tam_ad) or aranan in ozet.tc
     ]
 
 

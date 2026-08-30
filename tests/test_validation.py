@@ -6,6 +6,7 @@ import pytest
 
 from app.validation import (
     ad_normalize,
+    arama_anahtari,
     dogum_tarihi_ayristir,
     tc_gecerli_mi,
     tc_hata_mesaji,
@@ -95,3 +96,33 @@ class TestDogumTarihi:
     def test_cok_eski_tarih_reddedilir(self):
         with pytest.raises(ValueError, match="1900"):
             dogum_tarihi_ayristir("05.03.1850")
+
+
+class TestAramaAnahtari:
+    """Kasiyer Turkce harf tuslariyla ugrasmadan da musteriyi bulabilmeli."""
+
+    @pytest.mark.parametrize(
+        "yazilan, kayit",
+        [
+            ("yilmaz", "YILMAZ"),      # noktali i ile yazip noktasiz kaydi bulma
+            ("ozdemir", "ÖZDEMİR"),
+            ("sahin", "ŞAHİN"),
+            ("cetin", "ÇETİN"),
+            ("gunes", "GÜNEŞ"),
+            ("ugur", "UĞUR"),
+            ("ısık", "IŞIK"),          # noktasiz i ile yazan da bulmali
+            ("ÖZDEMİR", "özdemir"),
+        ],
+    )
+    def test_yazim_farki_eslesir(self, yazilan, kayit):
+        assert arama_anahtari(yazilan) == arama_anahtari(kayit)
+
+    def test_farkli_isimler_eslesmez(self):
+        assert arama_anahtari("ozdemir") != arama_anahtari("ozdemer")
+
+    def test_bos_metin(self):
+        assert arama_anahtari("") == ""
+        assert arama_anahtari(None) == ""
+
+    def test_bosluk_ve_sira_korunur(self):
+        assert arama_anahtari("ALİ ÖZDEMİR") == "ali ozdemir"

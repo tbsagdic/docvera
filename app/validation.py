@@ -29,6 +29,28 @@ def ad_normalize(metin: str) -> str:
     return _COKLU_BOSLUK.sub(" ", metin.strip()).translate(_UPPER_MAP).upper()
 
 
+# Turkce harfleri ASCII karsiliklarina katlar. Kasiyer aceleyle "ozdemir",
+# "yilmaz", "sahin" yaziyor; kayit "ÖZDEMİR", "YILMAZ", "ŞAHİN" oldugu icin
+# yalnizca kucuk harfe cevirmek yetmiyor - "YILMAZ" Turkce kurallarla
+# "yılmaz" olur ve noktali i ile yazan kimse bulamaz.
+_KATLAMA_MAP = str.maketrans(
+    {
+        "ı": "i", "ş": "s", "ğ": "g", "ü": "u", "ö": "o", "ç": "c",
+        "â": "a", "î": "i", "û": "u", "ê": "e", "ô": "o",
+    }
+)
+
+
+def arama_anahtari(metin: str) -> str:
+    """Aramada karsilastirilan bicim: 'ÖZDEMİR' ve 'ozdemir' ayni anahtari verir.
+
+    Once Turkce kurallariyla kucuk harfe cevrilir (I -> ı, İ -> i), sonra
+    Turkce'ye ozgu harfler ASCII karsiliklarina katlanir. Boylece kasiyer
+    Turkce klavye tuslariyla ugrasmadan da musteriyi bulur.
+    """
+    return tr_lower(metin or "").translate(_KATLAMA_MAP)
+
+
 def tc_normalize(tc: str) -> str:
     """TC alanindan rakam disi her seyi atar."""
     return re.sub(r"\D", "", tc or "")

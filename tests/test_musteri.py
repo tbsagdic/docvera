@@ -88,9 +88,15 @@ class TestOzetler:
 
 
 class TestArama:
-    def test_turkce_harfe_duyarsiz(self, tmp_path, vt):
+    @pytest.mark.parametrize("yazilan", ["özdem", "ozdem", "OZDEMIR", "ali"])
+    def test_turkce_harf_yazilmadan_bulunur(self, tmp_path, vt, yazilan):
         _rehber_kaydi(tmp_path)
-        assert ozet_ara(musteri_ozetleri(tmp_path, vt), "özdem")
+        assert ozet_ara(musteri_ozetleri(tmp_path, vt), yazilan)
+
+    @pytest.mark.parametrize("yazilan", ["yilmaz", "yılmaz", "YILMAZ"])
+    def test_noktasiz_i_iki_yonlu(self, tmp_path, vt, yazilan):
+        _rehber_kaydi(tmp_path, tc=TC2, ad="AYŞE", soyad="YILMAZ")
+        assert ozet_ara(musteri_ozetleri(tmp_path, vt), yazilan)
 
     def test_tc_parcasi(self, tmp_path, vt):
         _rehber_kaydi(tmp_path)

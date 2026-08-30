@@ -7,6 +7,8 @@ geldiginde yeni musteri acilmamali, gelisi kayitlar listesine eklenmelidir.
 import datetime as dt
 import json
 
+import pytest
+
 from app.storage import rehber
 
 TC = "10000000146"
@@ -99,9 +101,15 @@ class TestMusteriTekrari:
 
 
 class TestArama:
-    def test_turkce_kucuk_harf_duyarsiz(self, tmp_path):
+    @pytest.mark.parametrize("yazilan", ["özdem", "ozdem", "ÖZDEM", "OZDEMIR", "ali"])
+    def test_turkce_harf_yazilmadan_bulunur(self, tmp_path, yazilan):
         _yaz(tmp_path, ad="ALİ", soyad="ÖZDEMİR")
-        assert rehber.ara(rehber.musteriler(tmp_path), "özdem")
+        assert rehber.ara(rehber.musteriler(tmp_path), yazilan)
+
+    @pytest.mark.parametrize("yazilan", ["yilmaz", "yılmaz", "YILMAZ"])
+    def test_noktasiz_i_iki_yonlu(self, tmp_path, yazilan):
+        _yaz(tmp_path, ad="AYŞE", soyad="YILMAZ")
+        assert rehber.ara(rehber.musteriler(tmp_path), yazilan)
 
     def test_tc_parcasiyla_bulunur(self, tmp_path):
         _yaz(tmp_path)

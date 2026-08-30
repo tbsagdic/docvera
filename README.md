@@ -383,6 +383,15 @@ bellidir.
 Liste iki kaynağın birleşimidir — bu bilgisayarın veritabanı ve arşivdeki
 `musteriler.json`. Böylece başka bir şubede kaydedilmiş müşteri de görünür.
 
+**Türkçe harf yazmak gerekmez.** Arama, Türkçe harfleri ASCII karşılığına
+katlayarak karşılaştırır: `ozdemir` → **ÖZDEMİR**, `yilmaz` → **YILMAZ**,
+`sahin` → **ŞAHİN**, `gunes` → **GÜNEŞ**. Ters yönü de çalışır. Aynı kural
+geçmiş kayıtlar aramasında da geçerlidir.
+
+> Yalnızca küçük harfe çevirmek yetmiyordu: Türkçe kurallarla `YILMAZ` →
+> `yılmaz` olur, noktalı `i` ile yazan kimse kaydı bulamaz ve müşteri "yok"
+> sanılıp ikinci kez açılırdı.
+
 ### Müşteri bilgisi ekranı
 
 **Geçmiş Kayıtlar (Ctrl+F)** listesinde her satırdaki **Müşteri bilgisi gör**
@@ -647,7 +656,8 @@ yazdırılır.
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-TC algoritması, Türkçe büyük/küçük harf dönüşümü, klasör adı üretimi, sayfa
+TC algoritması, Türkçe büyük/küçük harf dönüşümü ve arama katlaması
+(`ozdemir` = `ÖZDEMİR`) ile şema yükseltmesi, klasör adı üretimi, sayfa
 numaralandırma, PDF birleştirme, `meta.json` birleştirme, müşteri rehberi
 (tekrar gelen müşterinin tek girdi kalması, arşivden yeniden üretim),
 MRZ çözümleme
@@ -666,7 +676,7 @@ app/
 ├── config.py            Ayarlar (JSON)
 ├── db.py                SQLite: müşteri, kayıt, sayfa, kuyruk, denetim
 ├── musteri.py           Müşteri özeti/geçmişi (veritabanı + rehber birleşimi)
-├── validation.py        TC algoritması, Türkçe'ye duyarlı harf dönüşümü
+├── validation.py        TC algoritması, Türkçe harf dönüşümü ve arama katlaması
 ├── surum.py             Üretilen sürüm numarası (elle düzenlenmez)
 ├── guncelleme.py        GitHub yayın sorgusu, doğrulama, yerinde kurulum
 ├── scanner/

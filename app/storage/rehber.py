@@ -41,7 +41,7 @@ import logging
 from pathlib import Path
 
 from app.storage.writer import META_DOSYASI
-from app.validation import tr_lower
+from app.validation import arama_anahtari
 
 log = logging.getLogger(__name__)
 
@@ -194,21 +194,25 @@ def sirala(girdiler) -> list[dict]:
         girdiler,
         key=lambda m: (
             m.get("son_kayit") or "",
-            tr_lower(f"{m.get('ad', '')} {m.get('soyad', '')}"),
+            arama_anahtari(f"{m.get('ad', '')} {m.get('soyad', '')}"),
         ),
         reverse=True,
     )
 
 
 def ara(girdiler, metin: str) -> list[dict]:
-    """TC veya ad/soyad parcasiyla suzer (Turkce buyuk/kucuk harfe duyarsiz)."""
+    """TC veya ad/soyad parcasiyla suzer.
+
+    Karsilastirma katlanmis bicim uzerinden yapilir: 'ozdemir' de 'ÖZDEMİR' de
+    ayni kaydi bulur (bkz. app.validation.arama_anahtari).
+    """
     metin = (metin or "").strip()
     if not metin:
         return list(girdiler)
-    aranan = tr_lower(metin)
+    aranan = arama_anahtari(metin)
     sonuc = []
     for musteri in girdiler:
-        tam_ad = tr_lower(f"{musteri.get('ad', '')} {musteri.get('soyad', '')}")
+        tam_ad = arama_anahtari(f"{musteri.get('ad', '')} {musteri.get('soyad', '')}")
         if aranan in tam_ad or aranan in str(musteri.get("tc", "")):
             sonuc.append(musteri)
     return sonuc

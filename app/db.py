@@ -13,9 +13,10 @@ import json
 import sqlite3
 from pathlib import Path
 
-from app.validation import tr_lower
+from app.validation import arama_anahtari
 
-SEMA_SURUMU = 1
+# 2: 'arama' sutunu Turkce harfleri katlanmis bicimi tutar
+SEMA_SURUMU = 2
 
 _SEMA = """
 CREATE TABLE IF NOT EXISTS musteriler (
@@ -24,9 +25,11 @@ CREATE TABLE IF NOT EXISTS musteriler (
     ad            TEXT    NOT NULL,
     soyad         TEXT    NOT NULL,
     dogum_tarihi  TEXT,
-    -- Turkce'ye duyarli kucuk harfli 'ad soyad'. SQLite'in LIKE'i yalnizca
-    -- ASCII'de buyuk/kucuk harf duyarsizdir; 'ö' ile 'Ö' eslesmez. Aramalar
-    -- bu yuzden dogrudan ad/soyad uzerinde degil bu sutun uzerinde yapilir.
+    -- Aramaya hazir 'ad soyad': kucuk harfli ve Turkce harfleri katlanmis
+    -- ('ÖZDEMİR' -> 'ozdemir'). SQLite'in LIKE'i yalnizca ASCII'de
+    -- buyuk/kucuk harf duyarsizdir; 'ö' ile 'Ö' eslesmez. Aramalar bu yuzden
+    -- dogrudan ad/soyad uzerinde degil bu sutun uzerinde yapilir.
+    -- Bkz. app.validation.arama_anahtari
     arama         TEXT    NOT NULL DEFAULT '',
     olusturma     TEXT    NOT NULL,
     guncelleme    TEXT    NOT NULL
@@ -127,7 +130,30 @@ class Veritabani:
         satir = self.baglanti.execute("SELECT surum FROM sema_bilgi").fetchone()
         if satir is None:
             self.baglanti.execute("INSERT INTO sema_bilgi (surum) VALUES (?)", (SEMA_SURUMU,))
+        elif int(satir["surum"]) < SEMA_SURUMU:
+            self._surumu_yukselt(int(satir["surum"]))
         self.baglanti.commit()
+
+    def _surumu_yukselt(self, mevcut: int) -> None:
+        """Eski veritabanini guncel semaya tasir.
+
+        Yukseltme her acilista degil, yalnizca surum farkliysa calisir.
+        """
+        if mevcut < 2:
+            # 'arama' sutunu artik katlanmis bicimi tutuyor. Eski satirlar
+            # yeniden hesaplanmazsa 'ÖZDEMİR' kaydi 'ozdemir' aramasiyla
+            # bulunamaz - sessizce eksik sonuc doner.
+            satirlar = self.baglanti.execute(
+                "SELECT id, ad, soyad FROM musteriler"
+            ).fetchall()
+            self.baglanti.executemany(
+                "UPDATE musteriler SET arama = ? WHERE id = ?",
+                [
+                    (arama_anahtari(f"{s['ad']} {s['soyad']}"), s["id"])
+                    for s in satirlar
+                ],
+            )
+        self.baglanti.execute("UPDATE sema_bilgi SET surum = ?", (SEMA_SURUMU,))
 
     def kapat(self) -> None:
         self.baglanti.close()
@@ -139,7 +165,7 @@ class Veritabani:
     ) -> int:
         """Musteriyi ekler veya bilgilerini gunceller; musteri id'sini dondurur."""
         simdi = _simdi()
-        arama = tr_lower(f"{ad} {soyad}")
+        arama = arama_anahtari(f"{ad} {soyad}")
         with self.baglanti:
             self.baglanti.execute(
                 """
@@ -202,12 +228,12 @@ class Veritabani:
     def ara(self, metin: str, sinir: int = 100) -> list[sqlite3.Row]:
         """TC veya ad/soyad ile kayit arar.
 
-        Ad aramasi Turkce'ye duyarli kucuk harfe cevrilmis 'arama' sutunu
-        uzerinden yapilir; boylece 'özdem' yazan kasiyer 'ÖZDEMİR' kaydini
-        bulur (SQLite'in LIKE'i bunu tek basina yapamaz).
+        Ad aramasi katlanmis 'arama' sutunu uzerinden yapilir; boylece
+        'özdem' de 'ozdem' de 'ÖZDEMİR' kaydini bulur (SQLite'in LIKE'i bunu
+        tek basina yapamaz).
         """
         metin = metin.strip()
-        desen_ad = f"%{tr_lower(metin)}%"
+        desen_ad = f"%{arama_anahtari(metin)}%"
         desen_tc = f"%{metin}%"
         return self.baglanti.execute(
             """
