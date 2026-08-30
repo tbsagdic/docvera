@@ -28,6 +28,7 @@ Dövizciye gelen müşterinin **ad soyad, TC kimlik no, doğum tarihi** bilgisin
 | **Asla yanlış yazmaz** | Doğrulanamayan alan boş bırakılır ve kasiyerden istenir — tahmin yürütülmez |
 | **Cihazda kalır** | OCR tamamen yerel çalışır; kimlik görüntüsü hiçbir bulut servisine gitmez |
 | **Çevrimdışı çalışır** | İnternet yoksa arşiv yine yazılır, Drive yüklemeleri kuyruğa alınır |
+| **Aynı müşteriyi bir kez açar** | Kayıtlı müşteri listesinden seçilir; yeni evrak mevcut müşterinin altına, bugünün klasörüne düşer |
 | **Düzeni bozmaz** | Klasör ağacı elle tutulan mevcut arşivle birebir aynıdır |
 | **Kurulum istemez** | Tek klasör `.exe`; hedef makinede Python gerekmez |
 | **Eksiğini kendi kurar** | Tesseract ve Türkçe dil paketi eksikse tek düğmeyle indirilip kurulur |
@@ -61,7 +62,26 @@ Klasör düzeni elle tutulan mevcut arşivle birebir aynıdır:
 - `8901` = TC'nin son 4 hanesi. Aynı gün aynı isimli iki farklı müşteri karışmaz.
 - **Aynı müşteri aynı gün tekrar gelirse** yeni klasör açılmaz; sayfalar `03.jpg`,
   `04.jpg` diye devam eder ve PDF yeniden üretilir.
+- **Başka bir gün gelirse** evrak eski klasöre eklenmez; o **günün** klasörü
+  açılır. Müşteri aynı kalır, gelişleri tarih tarih ayrılır.
 - `<ŞUBE>` seviyesi yalnızca ayarlarda şube adı doluysa oluşur.
+
+### Müşteri rehberi — `musteriler.json`
+
+Arşivin **kökünde** tek bir rehber dosyası tutulur:
+
+```
+<KÖK>\musteriler.json
+```
+
+Müşteriler TC'ye göre saklanır: aynı kişi kaç kez gelirse gelsin **tek girdi**
+olur, gelişleri `kayitlar` listesine eklenir. Veritabanı her bilgisayarda
+yereldir; rehber arşivin içinde durduğu için Drive ile eşitlenir ve diğer
+şubeler de aynı müşteri listesini görür.
+
+Rehber bir **dizindir, kaynak değildir** — asıl veri her müşteri klasöründeki
+`meta.json`'dadır. Dosya silinir ya da bozulursa **Kayıtlı Müşteriler →
+Arşivden tara** ile arşiv taranıp baştan üretilir.
 
 ---
 
@@ -344,6 +364,38 @@ Olağan akış **taramayla başlar** — müşteri bilgisi önce girilmek zorund
 **TARA** yalnızca tarayıcı seçilmiş olmasını ister. Müşteri bilgisi şartı
 **KAYDET**'tedir; eksik alan varsa düğmenin üstünde ne girilmesi gerektiği yazar.
 
+### Kayıtlı müşteri seçme (Ctrl+M)
+
+Müşteri daha önce geldiyse bilgilerini yeniden yazmaya gerek yok — yazım farkı
+zaten ikinci bir müşteri kaydı doğururdu.
+
+1. **Kayıtlı Müşteri Seç (Ctrl+M)** → ad soyad ya da TC yazarak ara → **Seç**
+   (Enter en üstteki eşleşmeyi seçer).
+2. Ad, soyad, TC ve doğum tarihi forma yüklenir ve **kilitlenir**; üstte
+   *Kayıtlı müşteri: ALİ ÖZDEMİR* yazar. Yanlış müşteri seçildiyse **Değiştir**
+   kilidi açar.
+3. Evrak taranır ve **KAYDET** denir. Evrak mevcut müşterinin altına, **bugünün**
+   klasörüne yazılır.
+
+Müşteri seçiliyken kimlik okuma (OCR) çalışmaz: kimin evrakı olduğu zaten
+bellidir.
+
+Liste iki kaynağın birleşimidir — bu bilgisayarın veritabanı ve arşivdeki
+`musteriler.json`. Böylece başka bir şubede kaydedilmiş müşteri de görünür.
+
+### Müşteri bilgisi ekranı
+
+**Geçmiş Kayıtlar (Ctrl+F)** listesinde her satırdaki **Müşteri bilgisi gör**
+düğmesi (ya da satıra çift tıklamak) müşteri detayını açar:
+
+- Üstte ad soyad, TC, doğum tarihi, toplam kayıt ve sayfa sayısı, ilk/son geliş.
+- Altında **her geliş ayrı bir başlık** olarak tarih tarih listelenir; müşterinin
+  **ilk kaydı** `(Müşteri Formu)` etiketiyle işaretlenir.
+- Başlığın altındaki sayfalara ya da PDF'e çift tıklamak dosyayı **doğrudan
+  açar** (JPG görüntüleyicide, PDF okuyucuda).
+- **Bu müşteriye yeni belge ekle** düğmesi müşteriyi forma yükleyip kilitler;
+  taranan evrak bugünün klasörüne eklenir.
+
 ### Dosyadan ekleme (tarayıcısız)
 
 Evrak WhatsApp'tan geldiyse, başka bir bilgisayarda tarandıysa veya tarayıcı
@@ -375,6 +427,7 @@ sayfalarda da aranır.
 | `F5` | Tara |
 | `Ctrl+S` | Kaydet |
 | `Ctrl+O` | Dosyadan ekle (PDF/görüntü) |
+| `Ctrl+M` | Kayıtlı müşteri seç |
 | `Ctrl+F` | Geçmiş kayıtlarda ara |
 | `Delete` | Seçili sayfayı sil |
 | `Enter` (önizlemede) | Onayla |
@@ -580,6 +633,7 @@ yazdırılır.
 | İndirilen güncelleme | `%APPDATA%\Docvera\guncelleme\` (kurulumdan sonra silinir) |
 | Güncelleme günlüğü | `%APPDATA%\Docvera\guncelleme.log` |
 | Arşiv | Ayarlardaki kök klasör (varsayılan `C:\DocveraArsiv`) |
+| Müşteri rehberi | Arşiv kökünde `musteriler.json` |
 
 > Kök klasörü masaüstü yerine `C:\DocveraArsiv` gibi **kısa** bir yolda tutun.
 > Windows'un 260 karakterlik yol sınırı, uzun isimlerde derin klasör ağacıyla
@@ -594,7 +648,9 @@ yazdırılır.
 ```
 
 TC algoritması, Türkçe büyük/küçük harf dönüşümü, klasör adı üretimi, sayfa
-numaralandırma, PDF birleştirme, `meta.json` birleştirme, MRZ çözümleme
+numaralandırma, PDF birleştirme, `meta.json` birleştirme, müşteri rehberi
+(tekrar gelen müşterinin tek girdi kalması, arşivden yeniden üretim),
+MRZ çözümleme
 (kontrol haneleri, OCR hata düzeltme, çöp isim koruması) ve yükleme kuyruğunun
 yeniden deneme mantığı (sahte Drive istemcisiyle, ağ bağlantısı olmadan) kapsanır.
 
@@ -609,6 +665,7 @@ hesaplanarak sentetik MRZ üretilir.
 app/
 ├── config.py            Ayarlar (JSON)
 ├── db.py                SQLite: müşteri, kayıt, sayfa, kuyruk, denetim
+├── musteri.py           Müşteri özeti/geçmişi (veritabanı + rehber birleşimi)
 ├── validation.py        TC algoritması, Türkçe'ye duyarlı harf dönüşümü
 ├── surum.py             Üretilen sürüm numarası (elle düzenlenmez)
 ├── guncelleme.py        GitHub yayın sorgusu, doğrulama, yerinde kurulum
@@ -619,6 +676,7 @@ app/
 ├── storage/
 │   ├── paths.py         Klasör/dosya adı üretimi, çakışma çözümü
 │   ├── aktarim.py       PDF/görüntü dosyalarından sayfa içe aktarma
+│   ├── rehber.py        Arşiv kökündeki musteriler.json (müşteri dizini)
 │   └── writer.py        JPG yazımı, PDF birleştirme, meta.json
 ├── ocr/
 │   ├── mrz.py           TD1 MRZ çözümleyici + kontrol haneleri
@@ -634,8 +692,11 @@ app/
 │   ├── queue.py         Arka plan kuyruğu + üstel geri çekilme
 │   └── yerel_esitleme.py  Drive masaüstü uygulamasının klasörünü bulur
 └── ui/                  PySide6 arayüzü
-    ├── guncelleme_dialog.py  Sürüm penceresi + otomatik denetim
-    └── kurulum_dialog.py     Eksik bileşen penceresi
+    ├── musteri_sec_dialog.py    Hızlı müşteri seçme (Ctrl+M)
+    ├── musteri_detay_dialog.py  Müşteri bilgisi: evraklar tarih tarih
+    ├── history_view.py          Geçmiş kayıtlarda arama
+    ├── guncelleme_dialog.py     Sürüm penceresi + otomatik denetim
+    └── kurulum_dialog.py        Eksik bileşen penceresi
 ```
 
 Tarama ve Drive yüklemeleri **ayrı iş parçacıklarında** çalışır; arayüz hiçbir

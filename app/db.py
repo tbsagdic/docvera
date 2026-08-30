@@ -165,6 +165,27 @@ class Veritabani:
             "SELECT * FROM musteriler WHERE tc = ?", (tc,)
         ).fetchone()
 
+    def musteri_listesi(self, sinir: int = 1000) -> list[sqlite3.Row]:
+        """Kayitli musterileri kayit sayisi ve tarih ozetiyle dondurur.
+
+        Hizli musteri secme listesi bunu kullanir: musteri basina tek satir
+        gelir, ayni musteri kac kez geldiyse 'kayit_sayisi'nda gorunur.
+        """
+        return self.baglanti.execute(
+            """
+            SELECT m.tc, m.ad, m.soyad, m.dogum_tarihi,
+                   COUNT(k.id)  AS kayit_sayisi,
+                   MIN(k.tarih) AS ilk_kayit,
+                   MAX(k.tarih) AS son_kayit
+            FROM musteriler m
+            LEFT JOIN kayitlar k ON k.musteri_id = m.id
+            GROUP BY m.id
+            ORDER BY son_kayit DESC, m.guncelleme DESC
+            LIMIT ?
+            """,
+            (sinir,),
+        ).fetchall()
+
     def musteri_gecmisi(self, tc: str, sinir: int = 20) -> list[sqlite3.Row]:
         """Musterinin onceki kayitlarini yeniden eskiye dondurur."""
         return self.baglanti.execute(

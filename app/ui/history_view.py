@@ -1,12 +1,13 @@
-"""Geçmiş kayıtlarda arama penceresi."""
+"""Geçmiş kayıtlarda arama penceresi.
+
+Listede klasör yolu gösterilmez: kasiyerin işine yarayan şey yolun kendisi
+değil, o müşterinin evraklarıdır. Her satırdaki "Müşteri bilgisi gör"
+düğmesi müşteri detay ekranını açar (bkz. musteri_detay_dialog).
+"""
 
 from __future__ import annotations
 
 import datetime as _dt
-import os
-import subprocess
-import sys
-from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -15,7 +16,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -23,16 +23,26 @@ from PySide6.QtWidgets import (
 )
 
 from app.db import Veritabani
+from app.ui.kabuk import ac as kabukta_ac
 
-SUTUNLAR = ["Tarih", "Ad Soyad", "TC", "Sayfa", "Şube", "Klasör"]
+SUTUNLAR = ["Tarih", "Ad Soyad", "TC", "Sayfa", "Şube", "Müşteri"]
+
+# Satirin tasidigi klasor yolu ve TC bu rollerde saklanir
+KLASOR_ROLU = Qt.ItemDataRole.UserRole
+TC_ROLU = Qt.ItemDataRole.UserRole + 1
+
+DETAY_SUTUNU = 5
 
 
 class GecmisDiyalogu(QDialog):
-    """TC veya ad ile eski kayitlari arar ve klasorunu acar."""
+    """TC veya ad ile eski kayitlari arar; musteri detayini ve klasoru acar."""
 
-    def __init__(self, vt: Veritabani, parent=None):
+    def __init__(self, ayarlar, vt: Veritabani, parent=None, belge_ekle=None):
+        """belge_ekle: detay ekranindaki "yeni belge ekle" dugmesinin geri cagrisi."""
         super().__init__(parent)
+        self.ayarlar = ayarlar
         self.vt = vt
+        self._belge_ekle = belge_ekle
         self.setWindowTitle("Geçmiş Kayıtlar")
         self.resize(940, 560)
 
@@ -49,10 +59,14 @@ class GecmisDiyalogu(QDialog):
         self.tablo.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.tablo.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.tablo.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.tablo.doubleClicked.connect(self.klasoru_ac)
-        basliklar = self.tablo.horizontalHeader()
-        basliklar.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        self.tablo.verticalHeader().setVisible(False)
+        self.tablo.doubleClicked.connect(self.detayi_ac)
+        self.tablo.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
 
+        detay_dugmesi = QPushButton("Müşteri bilgisi gör")
+        detay_dugmesi.clicked.connect(self.detayi_ac)
         ac_dugmesi = QPushButton("Klasörü aç")
         ac_dugmesi.clicked.connect(self.klasoru_ac)
         kapat_dugmesi = QPushButton("Kapat")
@@ -60,6 +74,7 @@ class GecmisDiyalogu(QDialog):
 
         alt = QHBoxLayout()
         alt.addWidget(self.sonuc_etiketi, 1)
+        alt.addWidget(detay_dugmesi)
         alt.addWidget(ac_dugmesi)
         alt.addWidget(kapat_dugmesi)
 
@@ -82,7 +97,6 @@ class GecmisDiyalogu(QDialog):
                 kayit["tc"],
                 str(kayit["sayfa_sayisi"]),
                 kayit["sube_kodu"] or "-",
-                kayit["klasor_yolu"],
             ]
             for sutun, deger in enumerate(degerler):
                 oge = QTableWidgetItem(deger)
@@ -90,31 +104,51 @@ class GecmisDiyalogu(QDialog):
                     oge.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.tablo.setItem(satir, sutun, oge)
 
+            # Klasor yolu ve TC gorunmez veri olarak ilk hucrede tasinir
+            ilk = self.tablo.item(satir, 0)
+            ilk.setData(KLASOR_ROLU, kayit["klasor_yolu"])
+            ilk.setData(TC_ROLU, kayit["tc"])
+
+            dugme = QPushButton("Müşteri bilgisi gör")
+            dugme.setToolTip("Bu müşterinin tüm evraklarını tarih tarih gösterir")
+            dugme.clicked.connect(
+                lambda _=False, tc=kayit["tc"]: self._detayi_goster(tc)
+            )
+            self.tablo.setCellWidget(satir, DETAY_SUTUNU, dugme)
+
         self.tablo.resizeColumnsToContents()
         self.tablo.horizontalHeader().setSectionResizeMode(
-            5, QHeaderView.ResizeMode.Stretch
+            1, QHeaderView.ResizeMode.Stretch
         )
         self.sonuc_etiketi.setText(f"{len(kayitlar)} kayıt")
 
-    def klasoru_ac(self) -> None:
-        """Secili kaydin klasorunu Windows Gezgini'nde acar."""
+    # --- Eylemler ---------------------------------------------------------
+
+    def _secili_veri(self, rol: int) -> str | None:
         satir = self.tablo.currentRow()
         if satir < 0:
-            return
-        oge = self.tablo.item(satir, 5)
-        if oge is None:
-            return
+            return None
+        oge = self.tablo.item(satir, 0)
+        return oge.data(rol) if oge is not None else None
 
-        klasor = Path(oge.text())
-        if not klasor.is_dir():
-            QMessageBox.warning(
-                self,
-                "Klasör bulunamadı",
-                f"Klasör diskte yok:\n{klasor}\n\nTaşınmış veya silinmiş olabilir.",
-            )
-            return
+    def detayi_ac(self) -> None:
+        """Secili satirin musterisini detay ekraninda acar."""
+        tc = self._secili_veri(TC_ROLU)
+        if tc:
+            self._detayi_goster(tc)
 
-        if sys.platform == "win32":
-            os.startfile(klasor)  # noqa: S606 - Windows Gezgini
-        else:
-            subprocess.run(["xdg-open", str(klasor)], check=False)
+    def _detayi_goster(self, tc: str) -> None:
+        from app.ui.musteri_detay_dialog import MusteriDetayDiyalogu
+
+        diyalog = MusteriDetayDiyalogu(
+            self.ayarlar, self.vt, tc, self, belge_ekle=self._belge_ekle
+        )
+        if diyalog.exec() and self._belge_ekle is not None:
+            # Detaydan "yeni belge ekle" secildi: ana pencereye don
+            self.accept()
+
+    def klasoru_ac(self) -> None:
+        """Secili kaydin klasorunu Windows Gezgini'nde acar."""
+        klasor = self._secili_veri(KLASOR_ROLU)
+        if klasor:
+            kabukta_ac(klasor, self)

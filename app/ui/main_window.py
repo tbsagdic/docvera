@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import getpass
+import logging
 import shutil
 from pathlib import Path
 
@@ -60,6 +61,8 @@ from app.validation import (
 )
 from app.varliklar import YATAY_LOGO, varlik_yolu
 
+log = logging.getLogger(__name__)
+
 KUCUK_RESIM = QSize(72, 100)
 SAYFA_GRID = QSize(90, 134)  # bir kucuk resim hucresi
 SAYFA_ARALIK = 4
@@ -71,6 +74,9 @@ SERIT_SAYFA_BOYU = SAYFA_SUTUN * SAYFA_SATIR
 LOGO_YUKSEKLIGI = 68
 # Logo once bu kat kadar buyuk cizilir, sonra kucultulur: kenarlar keskin kalir
 LOGO_OLCUM_KATI = 3
+# Kayitli musteri secildiginde alanlar salt okunur olur; bu stil kilidi gorunur
+# kilar - kasiyer "neden yazamiyorum" diye ugrasmasin
+KILITLI_ALAN_STILI = "background: #eef2f0; color: #333;"
 
 
 def logo_pixmapi(yukseklik: int) -> QPixmap:
@@ -127,6 +133,9 @@ class AnaPencere(QMainWindow):
         self.aktarim_iscisi = None
         self._ocr_sirasi: list[str] = []  # sirayla okunacak sayfa yollari
         self._ocr_calisiyor = False
+        # Kayitli musteriler listesinden secilen musterinin TC'si; doluyken
+        # form alanlari kilitlidir ve evrak o musterinin altina yazilir
+        self._secili_musteri_tc: str | None = None
         self.oturum_klasoru = gecici_klasor() / f"oturum_{_dt.datetime.now():%Y%m%d_%H%M%S}"
         self.oturum_klasoru.mkdir(parents=True, exist_ok=True)
 
@@ -186,6 +195,33 @@ class AnaPencere(QMainWindow):
     def _musteri_kutusu(self) -> QGroupBox:
         kutu = QGroupBox("Müşteri Bilgileri")
         duzen = QFormLayout(kutu)
+
+        # Ayni musteri tekrar geldiginde bilgileri elle yazdirmak yerine
+        # kayitli listeden sectiriyoruz: yazim farkindan ikinci bir musteri
+        # kaydi dogmaz, evrak mevcut musterinin altina eklenir.
+        self.musteri_sec_dugmesi = QPushButton("Kayıtlı Müşteri Seç  (Ctrl+M)")
+        self.musteri_sec_dugmesi.setMinimumHeight(32)
+        self.musteri_sec_dugmesi.setToolTip(
+            "Daha önce kaydedilmiş müşterilerde arama yapar. Seçilen "
+            "müşterinin bilgileri değiştirilemez şekilde forma yüklenir."
+        )
+        self.musteri_sec_dugmesi.clicked.connect(self.musteri_sec)
+        duzen.addRow(self.musteri_sec_dugmesi)
+
+        self.secim_etiketi = QLabel()
+        self.secim_etiketi.setWordWrap(True)
+        self.secim_etiketi.setStyleSheet("color: #1f6f43; font-weight: bold;")
+        secim_kaldir = QPushButton("Değiştir")
+        secim_kaldir.setToolTip("Seçimi kaldırır; bilgileri yeniden yazabilirsiniz.")
+        secim_kaldir.clicked.connect(self.musteri_secimini_kaldir)
+
+        self.secim_satiri = QWidget()
+        secim_duzeni = QHBoxLayout(self.secim_satiri)
+        secim_duzeni.setContentsMargins(0, 0, 0, 0)
+        secim_duzeni.addWidget(self.secim_etiketi, 1)
+        secim_duzeni.addWidget(secim_kaldir)
+        self.secim_satiri.setVisible(False)
+        duzen.addRow(self.secim_satiri)
 
         self.ad_alani = QLineEdit()
         self.soyad_alani = QLineEdit()
@@ -391,6 +427,7 @@ class AnaPencere(QMainWindow):
         QShortcut(QKeySequence("F5"), self, self.tara)
         QShortcut(QKeySequence("Ctrl+S"), self, self.kaydet)
         QShortcut(QKeySequence("Ctrl+F"), self, self.gecmisi_ac)
+        QShortcut(QKeySequence("Ctrl+M"), self, self.musteri_sec)
         QShortcut(QKeySequence("Ctrl+O"), self, self.dosyadan_ekle)
         QShortcut(QKeySequence("Delete"), self.sayfa_listesi, self.secili_sayfayi_sil)
 
@@ -399,7 +436,9 @@ class AnaPencere(QMainWindow):
     def gecmisi_ac(self) -> None:
         from app.ui.history_view import GecmisDiyalogu
 
-        GecmisDiyalogu(self.vt, self).exec()
+        GecmisDiyalogu(
+            self.ayarlar, self.vt, self, belge_ekle=self.musteriyi_forma_yukle
+        ).exec()
 
     def arsivi_ac(self) -> None:
         import os
@@ -629,6 +668,85 @@ class AnaPencere(QMainWindow):
                 f"Bu müşteri daha önce geldi: {tarihler}"
                 + (f" (+{len(gecmis)} kayıt)" if len(gecmis) > 2 else "")
             )
+
+    # --- Kayitli musteri secimi -------------------------------------------
+
+    def musteri_sec(self) -> None:
+        """Kayitli musteriler penceresini acar ve secimi forma yukler."""
+        from app.ui.musteri_sec_dialog import MusteriSecDiyalogu
+
+        diyalog = MusteriSecDiyalogu(self.ayarlar, self.vt, self)
+        if diyalog.exec() and diyalog.secilen is not None:
+            self._musteriyi_yukle(diyalog.secilen)
+
+    def musteriyi_forma_yukle(self, tc: str) -> None:
+        """Musteri detay ekranindaki "yeni belge ekle" bunu cagirir."""
+        from app.musteri import MusteriOzeti
+        from app.storage import rehber
+
+        satir = self.vt.musteri_bul(tc)
+        if satir is not None:
+            ozet = MusteriOzeti(
+                tc=tc,
+                ad=satir["ad"],
+                soyad=satir["soyad"],
+                dogum_tarihi=satir["dogum_tarihi"],
+            )
+        else:
+            # Kayit baska bir bilgisayarda alinmis olabilir: arsiv rehberine bak
+            girdi = rehber.musteri_getir(self.ayarlar.kok_klasor, tc)
+            if not girdi:
+                return
+            ozet = MusteriOzeti(
+                tc=tc,
+                ad=girdi.get("ad", ""),
+                soyad=girdi.get("soyad", ""),
+                dogum_tarihi=girdi.get("dogum_tarihi"),
+            )
+
+        self._musteriyi_yukle(ozet)
+        self.activateWindow()
+        self.raise_()
+
+    def _musteriyi_yukle(self, ozet) -> None:
+        """Secilen musterinin bilgilerini forma yazar ve alanlari kilitler."""
+        self.musteri_secimini_kaldir()  # once eski secimin kilidini ac
+        self.ad_alani.setText(ozet.ad)
+        self.soyad_alani.setText(ozet.soyad)
+        self.dogum_alani.setText(self._dogum_metni(ozet.dogum_tarihi))
+        self.tc_alani.setText(ozet.tc)  # gecmis bilgisini de bu tetikler
+
+        self._secili_musteri_tc = ozet.tc
+        self.secim_etiketi.setText(f"Kayıtlı müşteri: {ozet.tam_ad}")
+        self._kilidi_uygula(True)
+        self.statusBar().showMessage(
+            f"{ozet.tam_ad} seçildi. Taradığınız evrak bugünün klasörüne eklenecek.",
+            8000,
+        )
+        self._formu_denetle()
+
+    def musteri_secimini_kaldir(self) -> None:
+        """Kilidi acar; kasiyer bilgileri yeniden duzenleyebilir."""
+        self._secili_musteri_tc = None
+        self.secim_etiketi.clear()
+        self._kilidi_uygula(False)
+
+    def _kilidi_uygula(self, kilitli: bool) -> None:
+        for alan in (self.ad_alani, self.soyad_alani, self.tc_alani, self.dogum_alani):
+            alan.setReadOnly(kilitli)
+            alan.setStyleSheet(KILITLI_ALAN_STILI if kilitli else "")
+        self.secim_satiri.setVisible(kilitli)
+        self.musteri_sec_dugmesi.setVisible(not kilitli)
+
+    @staticmethod
+    def _dogum_metni(iso: str | None) -> str:
+        if not iso:
+            return ""
+        try:
+            gun = _dt.date.fromisoformat(str(iso))
+        except ValueError:
+            return ""
+        return f"{gun.day:02d}.{gun.month:02d}.{gun.year}"
 
     def _formu_denetle(self) -> None:
         gecerli = self._form_gecerli_mi()
@@ -898,7 +1016,13 @@ class AnaPencere(QMainWindow):
         self._sonraki_kimlik_okumasi()
 
     def _okuma_gerekli_mi(self) -> bool:
-        """Form zaten eksiksizse OCR'a gerek yok."""
+        """Form zaten eksiksizse ya da musteri secilmisse OCR'a gerek yok.
+
+        Kayitli musteri secildiginde kimin evraki oldugu zaten bellidir;
+        okunan bir kimlik alanlari degistiremeyeceginden bosuna calismaz.
+        """
+        if self._secili_musteri_tc:
+            return False
         return not (self._form_gecerli_mi() and self.dogum_alani.text().strip())
 
     def _sonraki_kimlik_okumasi(self) -> None:
@@ -1005,6 +1129,10 @@ class AnaPencere(QMainWindow):
 
     def _ad_onayini_isaretle(self, gerekli: bool) -> None:
         """Ad/soyad alanlarini onay bekliyor olarak vurgular."""
+        if self._secili_musteri_tc:
+            # Kayitli musteri secili: alanlar kilitli ve gri, onay vurgusu
+            # bu stili silmesin
+            return
         stil = "background: #fff8dc; border: 1px solid #b8860b;" if gerekli else ""
         self.ad_alani.setStyleSheet(stil)
         self.soyad_alani.setStyleSheet(stil)
@@ -1151,6 +1279,9 @@ class AnaPencere(QMainWindow):
             self.vt.denetim_yaz(
                 "kayit_olusturuldu", kayit_id, f"{ad} {soyad} - {len(yazilan)} sayfa"
             )
+            self._rehberi_guncelle(
+                kayit_id, tc, ad, soyad, dogum, bugun, parcalar, pdf_adi
+            )
         except OSError as exc:
             QMessageBox.critical(
                 self, "Kayıt hatası",
@@ -1174,7 +1305,41 @@ class AnaPencere(QMainWindow):
         self._formu_temizle()
         self.ayarlar.kaydet()
 
+    def _rehberi_guncelle(
+        self, kayit_id, tc, ad, soyad, dogum, tarih, parcalar, pdf_adi
+    ) -> None:
+        """Arsiv kokundeki musteriler.json rehberine musteriyi ve gelisini isler.
+
+        Rehber bir dizindir, kaynak degildir: yazilamazsa kayit yine de
+        tamamdir, yalnizca hizli musteri secme listesi guncellenmemis olur.
+        Bu yuzden hata kaydi engellemez, gunluge yazilir.
+        """
+        from app.storage import rehber
+
+        kayit = self.vt.kayit_getir(kayit_id)
+        try:
+            yol = rehber.musteri_yaz(
+                self.ayarlar.kok_klasor,
+                tc=tc,
+                ad=ad,
+                soyad=soyad,
+                dogum_tarihi=dogum,
+                tarih=tarih,
+                goreli_yol="/".join(parcalar),
+                sube_kodu=self.ayarlar.sube_kodu,
+                pdf_adi=pdf_adi,
+                sayfa_sayisi=int(kayit["sayfa_sayisi"]) if kayit else 0,
+            )
+        except OSError as exc:
+            log.warning("Musteri rehberi guncellenemedi: %s", exc)
+            return
+
+        if self.ayarlar.drive_etkin:
+            # Rehber arsivin kokunde durur: Drive'da da kok klasore gider
+            self.vt.kuyruga_ekle(kayit_id, str(yol), [], rehber.REHBER_DOSYASI)
+
     def _formu_temizle(self) -> None:
+        self.musteri_secimini_kaldir()
         for alan in (self.ad_alani, self.soyad_alani, self.tc_alani, self.dogum_alani):
             alan.clear()
         self.tc_uyari.clear()
