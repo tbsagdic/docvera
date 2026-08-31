@@ -672,11 +672,21 @@ altında durduğu için güncellemeden etkilenmez.
    kendi konsol penceresinde çalışır ("Docvera guncelleniyor"): hem kullanıcı
    ne olduğunu görüp uygulamayı yeniden açmaya çalışmaz, hem de konsolsuz
    başlatılan `cmd` ilk çıktı satırında ölmez.
-5. Betik uygulamanın kapanmasını bekler, sonra `move` ile eski klasörü yedeğe,
-   yeni klasörü yerine alır. `move` aynı diskte anlık bir işlemdir: yarım kalmış
-   bir kopyalama bozuk kurulum bırakmaz. Yeni klasör yerine konamazsa **eski
-   sürüm geri alınır**.
-6. Sonuç `%APPDATA%\Docvera\guncelleme_sonuc.txt` dosyasına yazılır; uygulama
+5. Uygulama kurulum başlar başlamaz **hiçbir şey sormadan kapanır**. Burada
+   onay bekleyen bir pencere gösterilmiyor: gösteriliyordu ve betiğin bekleme
+   sayacı o sırada işlediği için, kullanıcı **Tamam**'a basmakta geciktiğinde
+   güncelleme *"uygulama kapanmadı"* diye yarım kalıyordu. Ne olup bittiğini
+   betiğin kendi konsolu zaten yazıyor.
+6. Betik yalnızca beklemez, kapanmayı **kendisi ister**: ~3 saniye sonra
+   `taskkill /pid` ile nazik bir kapanma isteği (uygulama olağan kapanışını
+   yapar), ~15 saniyede hâlâ ayaktaysa `taskkill /f /pid`. Süreç ağacını
+   öldüren `/T` **bilerek verilmez** — bu betik uygulamanın çocuğu, ağacı
+   öldürmek güncellemenin kendisini öldürürdü. Kaydedilmemiş sayfa varken
+   güncelleme zaten başlamadığı için zorlama veri kaybettirmez.
+7. Uygulama kapanınca `move` ile eski klasör yedeğe, yeni klasör yerine alınır.
+   `move` aynı diskte anlık bir işlemdir: yarım kalmış bir kopyalama bozuk
+   kurulum bırakmaz. Yeni klasör yerine konamazsa **eski sürüm geri alınır**.
+8. Sonuç `%APPDATA%\Docvera\guncelleme_sonuc.txt` dosyasına yazılır; uygulama
    açılışta bunu okuyup kullanıcıya söyler ve dosyayı siler. Sessizce başarısız
    olan kurulum en kötü durumdur — kullanıcı güncellediğini sanıp eski sürümde
    çalışmaya devam eder. Bu yüzden ikinci bir savunma var: sonuç dosyası yokken

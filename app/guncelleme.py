@@ -53,6 +53,14 @@ _SHA_KALIBI = re.compile(r"sha-?256[^0-9a-fA-F]{0,12}([0-9a-fA-F]{64})", re.IGNO
 # Kurulum betiginin sonucu birakacagi dosya; uygulama acilista okuyup siler
 SONUC_DOSYASI = "guncelleme_sonuc.txt"
 
+# Betigin bekleme dongusundeki esikler (bir tik ~1 saniye). Uygulama once
+# kendiliginden kapanmali; kapanmazsa betik once nazikce kapanmasini ister,
+# sonra zorlar. Bekleyip pes etmek yeterli degildi: uygulama kapanmadan bir
+# pencere gosterirse sayac doluyor ve guncelleme yarim kaliyordu.
+NAZIK_KAPATMA_TIKI = 3
+ZORLA_KAPATMA_TIKI = 15
+AZAMI_BEKLEME_TIKI = 60
+
 
 class GuncellemeHatasi(Exception):
     """Kullaniciya gosterilebilir guncelleme hatasi."""
@@ -369,15 +377,28 @@ echo   Bu pencere kendiliginden kapanacak.
 echo.
 echo [%date% %time%] {surum} kurulumu basladi >>"%GUNLUK%"
 
-rem Uygulamanin kapanmasini bekle (en fazla ~60 saniye)
+rem Uygulamanin kapanmasini bekle; kapanmazsa betik kendisi kapatir.
+rem Once nazik istek (pencereye kapanma mesaji gider, uygulama olagan
+rem kapanisini yapar), sonra zorlama.
+rem
+rem taskkill'e /T VERILMEZ: bu betik uygulamanin cocuk sureci oldugu icin
+rem surec agacini oldurmek guncellemenin kendisini oldururdu.
 set /a SAYAC=0
 :bekle
 tasklist /fi "PID eq {pid}" 2>nul | find "{pid}" >nul
 if errorlevel 1 goto hazir
 set /a SAYAC+=1
-if %SAYAC% gtr 60 (
+if %SAYAC%=={nazik} (
+    echo [%date% %time%] kapanma istegi gonderiliyor >>"%GUNLUK%"
+    taskkill /pid {pid} >>"%GUNLUK%" 2>&1
+)
+if %SAYAC%=={zorla} (
+    echo [%date% %time%] uygulama kapanmadi, zorla kapatiliyor >>"%GUNLUK%"
+    taskkill /f /pid {pid} >>"%GUNLUK%" 2>&1
+)
+if %SAYAC% gtr {azami} (
     echo HATA Uygulama kapanmadigi icin guncelleme yapilamadi.>"%SONUC%"
-    echo [%date% %time%] uygulama kapanmadi >>"%GUNLUK%"
+    echo [%date% %time%] uygulama kapatilamadi >>"%GUNLUK%"
     goto temizle
 )
 ping -n 2 127.0.0.1 >nul
@@ -479,6 +500,9 @@ def kur(zip_yolu: str | Path, yayin: Yayin) -> Path:
             surum=yayin.surum,
             pid=pid,
             exe=EXE_ADI,
+            nazik=NAZIK_KAPATMA_TIKI,
+            zorla=ZORLA_KAPATMA_TIKI,
+            azami=AZAMI_BEKLEME_TIKI,
         ),
         encoding="ascii",
         errors="replace",

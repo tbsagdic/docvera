@@ -260,18 +260,19 @@ class GuncellemeDiyalogu(QDialog):
         self.kurulum_iscisi.start()
 
     def _kurulum_basladi(self) -> None:
+        """Betik calismaya basladi; uygulama GECIKMEDEN kapanmali.
+
+        Burada onay bekleyen bir pencere gosterilmiyor. Gosteriliyordu ve
+        betigin bekleme sayaci o sirada isliyordu: kullanici Tamam'a basana
+        kadar uygulama kapanmiyor, sayac dolunca guncelleme "uygulama
+        kapanmadi" diye yarim kaliyordu. Ne olacagini betigin kendi konsolu
+        zaten yaziyor.
+        """
         self.cubuk.setVisible(False)
         self._durumu_yaz(
             "Kurulum başlatıldı. Uygulama şimdi kapanacak ve yeni sürümle "
             "kendiliğinden açılacak.",
             "#1f6f43",
-        )
-        QMessageBox.information(
-            self,
-            "Güncelleme",
-            f"Docvera {self.yayin.surum} kuruluyor.\n\n"
-            "Uygulama şimdi kapanacak; kurulum bitince yeni sürüm kendiliğinden "
-            "açılacak. Bu sırada uygulamayı elle açmayın.",
         )
         self.accept()
         self.kapatilmali.emit()
