@@ -8,7 +8,7 @@ import logging
 import shutil
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtCore import Qt, QDate, QSize, QTimer
 from PySide6.QtGui import (
     QBitmap,
     QIcon,
@@ -24,6 +24,7 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDateEdit,
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -62,6 +63,11 @@ from app.validation import (
 from app.varliklar import YATAY_LOGO, varlik_yolu
 
 log = logging.getLogger(__name__)
+
+# Islem tarihinin alt siniri. Takvimi acik birakmak yerine bir sinir
+# konuyor: yil alanina yanlislikla '0202' yazan kasiyer, arsivin
+# icinde bir daha kimsenin bakmayacagi bir klasor acardi.
+EN_ESKI_ISLEM_YILI = 2000
 
 KUCUK_RESIM = QSize(72, 100)
 SAYFA_GRID = QSize(90, 134)  # bir kucuk resim hucresi
@@ -234,6 +240,36 @@ class AnaPencere(QMainWindow):
         self.dogum_alani = QLineEdit()
         self.dogum_alani.setPlaceholderText("GG.AA.YYYY (isteğe bağlı)")
 
+        # Evrak bu tarihin klasorune yazilir. Varsayilan bugun; dun gelen
+        # musteriyi ya da elde kalmis eski dosyayi kaydederken geriye
+        # alinabilir. Ileri tarih kapali: henuz olmamis bir gunun klasoru
+        # acilirsa gun sonu sayimi tutmaz.
+        self.tarih_alani = QDateEdit()
+        self.tarih_alani.setDisplayFormat("dd.MM.yyyy")
+        self.tarih_alani.setCalendarPopup(True)
+        self.tarih_alani.setMinimumDate(QDate(EN_ESKI_ISLEM_YILI, 1, 1))
+        self.tarih_alani.setMaximumDate(QDate.currentDate())
+        self.tarih_alani.setDate(QDate.currentDate())
+        self.tarih_alani.setToolTip(
+            "Evrakın hangi günün klasörüne yazılacağını belirler. "
+            "Geriye dönük kayıt için değiştirin."
+        )
+
+        self.bugun_dugmesi = QPushButton("Bugün")
+        self.bugun_dugmesi.setToolTip("İşlem tarihini bugüne döndürür.")
+        self.bugun_dugmesi.clicked.connect(self._bugune_don)
+        self.bugun_dugmesi.setVisible(False)
+
+        tarih_satiri = QWidget()
+        tarih_duzeni = QHBoxLayout(tarih_satiri)
+        tarih_duzeni.setContentsMargins(0, 0, 0, 0)
+        tarih_duzeni.addWidget(self.tarih_alani, 1)
+        tarih_duzeni.addWidget(self.bugun_dugmesi)
+
+        self.tarih_uyari = QLabel()
+        self.tarih_uyari.setWordWrap(True)
+        self.tarih_uyari.setStyleSheet("color: #b8860b; font-weight: bold;")
+
         for alan in (self.ad_alani, self.soyad_alani, self.tc_alani, self.dogum_alani):
             alan.setMinimumWidth(260)
 
@@ -256,8 +292,14 @@ class AnaPencere(QMainWindow):
         duzen.addRow("Soyad", self.soyad_alani)
         duzen.addRow("TC Kimlik No", self.tc_alani)
         duzen.addRow("Doğum Tarihi", self.dogum_alani)
+        duzen.addRow("İşlem Tarihi", tarih_satiri)
+        duzen.addRow("", self.tarih_uyari)
         duzen.addRow("", self.tc_uyari)
         duzen.addRow("", self.gecmis_etiketi)
+
+        # Baslangic degeri kurulurken _formu_denetle'ye gitmemeli:
+        # denetim henuz olusturulmamis dugmelere bakiyor.
+        self.tarih_alani.dateChanged.connect(self._islem_tarihi_degisti)
         return kutu
 
     def _tarayici_kutusu(self) -> QGroupBox:
@@ -749,6 +791,7 @@ class AnaPencere(QMainWindow):
         return f"{gun.day:02d}.{gun.month:02d}.{gun.year}"
 
     def _formu_denetle(self) -> None:
+        self._tarih_sinirini_tazele()
         gecerli = self._form_gecerli_mi()
         # TARA yalnizca tarayici secilmis olmasini ister. Musteri bilgisi
         # sarti KAYDET'tedir: kimlik tarandiginda TC, ad soyad ve dogum
@@ -810,9 +853,52 @@ class AnaPencere(QMainWindow):
             ad_normalize(self.ad_alani.text()),
             ad_normalize(self.soyad_alani.text()),
             tc_normalize(self.tc_alani.text()),
-            _dt.date.today(),
+            self._islem_tarihi(),
             sube=self.ayarlar.sube,
         )
+
+    # --- Islem tarihi -----------------------------------------------------
+
+    def _islem_tarihi(self) -> _dt.date:
+        """Evrakin yazilacagi gun. Varsayilani bugun."""
+        return self.tarih_alani.date().toPython()
+
+    def _bugune_don(self) -> None:
+        self.tarih_alani.setDate(QDate.currentDate())
+
+    def _tarih_sinirini_tazele(self) -> None:
+        """Ust siniri bugune ceker.
+
+        Uygulama gece yarisini gecerse dunku sinir yerinde kalir ve kasiyer
+        yeni gunu secemez; ustelik alanda duran 'bugun' aslinda dun olur.
+        """
+        bugun = QDate.currentDate()
+        if self.tarih_alani.maximumDate() == bugun:
+            return
+        gunu_takip_ediyordu = self.tarih_alani.date() == self.tarih_alani.maximumDate()
+        self.tarih_alani.setMaximumDate(bugun)
+        if gunu_takip_ediyordu:
+            self.tarih_alani.setDate(bugun)
+
+    def _islem_tarihi_degisti(self) -> None:
+        """Geriye donuk kayitta uyari gosterir.
+
+        Tarih kayittan sonra sifirlanmiyor: eski evrak genelde toplu
+        girilir. Bunun bedeli, kasiyerin tarihi bugune almayi unutmasi;
+        o yuzden alan geriye alindiginda gorunur bicimde isaretlenir.
+        """
+        geriye_donuk = self._islem_tarihi() != _dt.date.today()
+        self.bugun_dugmesi.setVisible(geriye_donuk)
+        self.tarih_alani.setStyleSheet(
+            "border: 1px solid #b8860b; background: #fff8e1;" if geriye_donuk else ""
+        )
+        self.tarih_uyari.setText(
+            "Geriye dönük kayıt: evrak "
+            f"{self._islem_tarihi():%d.%m.%Y} klasörüne yazılacak."
+            if geriye_donuk
+            else ""
+        )
+        self._formu_denetle()
 
     # --- Tarama -----------------------------------------------------------
 
@@ -1238,10 +1324,18 @@ class AnaPencere(QMainWindow):
             QMessageBox.warning(self, "Doğum tarihi", str(exc))
             return
 
-        bugun = _dt.date.today()
+        self._tarih_sinirini_tazele()
+        tarih = self._islem_tarihi()
+        if tarih > _dt.date.today():
+            QMessageBox.warning(
+                self, "İşlem tarihi",
+                "İleri tarihli kayıt yapılamaz. İşlem tarihini düzeltin.",
+            )
+            return
+
         klasor = self._hedef_klasor()
-        parcalar = goreli_parcalar(ad, soyad, tc, bugun, sube=self.ayarlar.sube)
-        pdf_adi = pdf_dosya_adi(ad, soyad, bugun) if self.ayarlar.pdf_olustur else None
+        parcalar = goreli_parcalar(ad, soyad, tc, tarih, sube=self.ayarlar.sube)
+        pdf_adi = pdf_dosya_adi(ad, soyad, tarih) if self.ayarlar.pdf_olustur else None
 
         try:
             yazilan = sayfalari_yaz(
@@ -1257,7 +1351,7 @@ class AnaPencere(QMainWindow):
                 tc, ad, soyad, dogum.isoformat() if dogum else None
             )
             kayit_id = self.vt.kayit_ac(
-                musteri_id, bugun, str(klasor), "/".join(parcalar),
+                musteri_id, tarih, str(klasor), "/".join(parcalar),
                 self.ayarlar.sube_kodu, pdf_adi,
             )
             for sayfa in yazilan:
@@ -1272,15 +1366,19 @@ class AnaPencere(QMainWindow):
                 self.vt.kuyruga_ekle(kayit_id, str(pdf_yolu), parcalar, pdf_adi)
 
             meta_yaz(
-                klasor, ad, soyad, tc, dogum, bugun, yazilan, pdf_adi,
+                klasor, ad, soyad, tc, dogum, tarih, yazilan, pdf_adi,
                 self.ayarlar.sube_kodu, self.cihaz_kutusu.currentText(),
                 getpass.getuser(),
             )
-            self.vt.denetim_yaz(
-                "kayit_olusturuldu", kayit_id, f"{ad} {soyad} - {len(yazilan)} sayfa"
-            )
+            # Geriye donuk kayit denetim kaydinda ayrica belirtilir: meta.json
+            # 'son_guncelleme' ile gercek zamani zaten tutuyor, ama denetime
+            # bakan kisi iki alani karsilastirmak zorunda kalmamali.
+            aciklama = f"{ad} {soyad} - {len(yazilan)} sayfa"
+            if tarih != _dt.date.today():
+                aciklama += f" - geriye dönük: {tarih:%d.%m.%Y}"
+            self.vt.denetim_yaz("kayit_olusturuldu", kayit_id, aciklama)
             self._rehberi_guncelle(
-                kayit_id, tc, ad, soyad, dogum, bugun, parcalar, pdf_adi
+                kayit_id, tc, ad, soyad, dogum, tarih, parcalar, pdf_adi
             )
         except OSError as exc:
             QMessageBox.critical(

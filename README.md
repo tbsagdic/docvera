@@ -65,6 +65,8 @@ Klasör düzeni elle tutulan mevcut arşivle birebir aynıdır:
 - **Başka bir gün gelirse** evrak eski klasöre eklenmez; o **günün** klasörü
   açılır. Müşteri aynı kalır, gelişleri tarih tarih ayrılır.
 - `<ŞUBE>` seviyesi yalnızca ayarlarda şube adı doluysa oluşur.
+- Ağaçtaki gün, formdaki **İşlem Tarihi** alanından gelir — varsayılanı bugündür,
+  geriye alınabilir (bkz. [İşlem tarihi](#i̇şlem-tarihi-ve-geriye-dönük-kayıt)).
 
 ### Müşteri rehberi — `musteriler.json`
 
@@ -364,6 +366,32 @@ Olağan akış **taramayla başlar** — müşteri bilgisi önce girilmek zorund
 **TARA** yalnızca tarayıcı seçilmiş olmasını ister. Müşteri bilgisi şartı
 **KAYDET**'tedir; eksik alan varsa düğmenin üstünde ne girilmesi gerektiği yazar.
 
+### İşlem tarihi ve geriye dönük kayıt
+
+Formdaki **İşlem Tarihi** evrakın hangi günün klasörüne yazılacağını belirler.
+Varsayılanı bugündür; olağan akışta hiç dokunulmaz.
+
+Geriye alınabilir: dün gelen müşterinin unutulan evrakı, elde kalmış eski dosya
+ya da arşive sonradan giren kâğıtlar **gerçekten ait oldukları güne** kaydedilir.
+Kayıt yeri etiketi hedef klasörü anında gösterir, böylece kaydetmeden önce nereye
+gideceği görülür.
+
+**İleri tarih seçilemez.** Henüz olmamış bir günün klasörü açılırsa gün sonu
+sayımı tutmaz; alan bugünle sınırlıdır ve sınır gece yarısı kendiliğinden kayar
+(uygulama açık bırakılsa bile ertesi gün "bugün" doğru günü gösterir).
+
+Tarih bugünden farklıyken alan sarı çerçeveye girer, altında *"Geriye dönük
+kayıt: evrak GG.AA.YYYY klasörüne yazılacak"* yazar ve yanında **Bugün** düğmesi
+belirir. **Tarih kayıttan sonra sıfırlanmaz** — eski evrak genelde toplu girilir,
+her sayfada tarihi yeniden seçtirmek işkence olurdu. Bunun bedeli kasiyerin
+tarihi bugüne almayı unutması; uyarı bu yüzden kalıcı ve göze batacak
+biçimdedir.
+
+Denetim tarafında iki kayıt birden tutulur: `meta.json` içindeki `tarih` işlem
+günüdür, `son_guncelleme` ise dosyanın gerçekten yazıldığı andır. Geriye dönük
+bir kayıt ayrıca denetim günlüğüne *"geriye dönük: GG.AA.YYYY"* notuyla düşer,
+böylece denetime bakan kişinin iki alanı karşılaştırması gerekmez.
+
 ### Kayıtlı müşteri seçme (Ctrl+M)
 
 Müşteri daha önce geldiyse bilgilerini yeniden yazmaya gerek yok — yazım farkı
@@ -403,7 +431,7 @@ düğmesi (ya da satıra çift tıklamak) müşteri detayını açar:
 - Başlığın altındaki sayfalara ya da PDF'e çift tıklamak dosyayı **doğrudan
   açar** (JPG görüntüleyicide, PDF okuyucuda).
 - **Bu müşteriye yeni belge ekle** düğmesi müşteriyi forma yükleyip kilitler;
-  taranan evrak bugünün klasörüne eklenir.
+  taranan evrak formdaki işlem tarihinin (varsayılan bugün) klasörüne eklenir.
 
 ### Dosyadan ekleme (tarayıcısız)
 
