@@ -241,14 +241,24 @@ def dogum_tarihi_sec(metin: str, bugun: _dt.date | None = None) -> _dt.date | No
 # Surucu belgesinde ad ve soyad numarali alanlarda yazar:
 #   1. SUNDU      (soyad)
 #   2. Gürsoy     (ad)
-_SOYAD_ALANI = re.compile(r"^\s*1[.\)]\s*(.+)$", re.M)
-_AD_ALANI = re.compile(r"^\s*2[.\)]\s*(.+)$", re.M)
+#
+# Alan numarasindan once birkac karakterlik cop kabul edilir: kartin
+# cercevesi ve hologramu OCR'da satir basina '7 1. SUNDU' ya da 'ç 2. Gürsoy'
+# gibi tek karakterlik lekeler birakiyor. Satir basina baglayan eski desen
+# bu yuzden gercek taramalarda hic tutmuyordu.
+_ALAN_ONEKI = r"^.{0,4}?"
+_ALAN_SONU = r"[.\)]\s*([A-ZÇĞİÖŞÜa-zçğıöşü].*)$"
+_SOYAD_ALANI = re.compile(_ALAN_ONEKI + "1" + _ALAN_SONU, re.M)
+_AD_ALANI = re.compile(_ALAN_ONEKI + "2" + _ALAN_SONU, re.M)
 
 # Isim olabilecek tek kelime: yalnizca harf, kesme isareti ve tire
 _ISIM_KELIMESI = re.compile(r"^[A-ZÇĞİÖŞÜa-zçğıöşü][A-ZÇĞİÖŞÜa-zçğıöşü'\-]*$")
 
 # Bir isimde en fazla kac kelime kabul edilecegi
 _AZAMI_ISIM_KELIMESI = 3
+
+# Tek harflik 'kelime' isim degildir; OCR lekesidir
+_ASGARI_ISIM_UZUNLUGU = 2
 
 
 def _isim_ayikla(satir: str) -> str:
@@ -262,10 +272,23 @@ def _isim_ayikla(satir: str) -> str:
     Sutun bosluklari kayboldugu icin bosluga gore bolmek ise yaramaz. Rakam
     iceren ilk kelimede durmak bu birlesmeyi guvenilir sekilde keser; gercek
     iki kelimeli isimler ('ALİ VELİ') etkilenmez.
+
+    Kart kenarindan gelen lekeler ise rakam icermez:
+
+        '1. SUNDU j Ae le | Fi'          <- soyad + hologram lekeleri
+
+    Bunlar icin iki kural daha var: tek harflik kelime isim sayilmaz ve
+    kelimenin yazim bicimi ilk kelimeyle ayni olmalidir. Surucu belgesinde
+    soyad BUYUK ('SUNDU'), ad Ilk-Harfi-Buyuk ('Gürsoy') yazilir; leke
+    ikisine de uymaz.
     """
     kelimeler: list[str] = []
     for kelime in satir.split():
         if not _ISIM_KELIMESI.match(kelime):
+            break
+        if len(kelime) < _ASGARI_ISIM_UZUNLUGU:
+            break
+        if kelimeler and kelime.isupper() != kelimeler[0].isupper():
             break
         kelimeler.append(kelime)
         if len(kelimeler) >= _AZAMI_ISIM_KELIMESI:

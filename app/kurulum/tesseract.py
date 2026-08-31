@@ -201,8 +201,8 @@ def _son_kurulum_adresi() -> str:
 
     raise KurulumHatasi(
         "Tesseract kurulum dosyası bulunamadı. İnternet bağlantısını "
-        "denetleyin; sorun sürerse bileşeni elle kurabilirsiniz:\n"
-        "https://github.com/UB-Mannheim/tesseract/wiki"
+        "denetleyin ve daha sonra tekrar deneyin. Otomatik kimlik okuma "
+        "çalışmasa da tarama ve kayıt normal şekilde sürer."
     )
 
 

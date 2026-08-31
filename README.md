@@ -165,6 +165,21 @@ yazılır (veriliş/geçerlilik tarihleri elenir).
 
 Bu yol `orta` güvenle raporlanır ve ekranda öyle gösterilir.
 
+**Neden birden fazla OCR geçişi?** Sürücü belgesi bir A4'e taranınca TC,
+`4d.32170008012` şeklinde milimetrik bir satırda kalır; tek bir geçiş bunu
+sık sık kaçırır. Bu yüzden sayfa sırayla birkaç farklı biçimde okunur — gri
+tonlama, dağılmış metin (psm 11), kontrast eşitleme, sonra döndürmeler — ve
+**alanlar geçişler arasında birleştirilir**: aynı taramada bir geçiş numarayı,
+başka bir geçiş ad satırını temiz çıkarabiliyor. TC ile ad soyad tamamlanır
+tamamlanmaz durulur, yani temiz bir taramada tek geçiş yeter.
+
+İki ayar bilinçlidir ve "iyileştirme" niyetiyle geri alınmamalıdır:
+
+- **Görüntü griye çevrilir.** Gerçek bir sürücü belgesi taramasında renkli
+  geçiş TC'yi hiç bulamazken aynı görüntünün gri hali doğru okudu.
+- **Çözünürlük düşürülmez.** Küçültülen sayfada `4d` satırı tamamen kayboluyor
+  (MRZ'de de aynı sorun var, bkz. `app/ocr/kimlik.py`).
+
 Bu ayrım bilinçlidir. Uygulama **asla yanlış veri yazmaz**; okuyamadığında
 alanı boş bırakıp kasiyerden ister. "Hatasız" sözü buna dayanır: doğrulanmamış
 hiçbir değer forma geçmez.

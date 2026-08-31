@@ -624,7 +624,7 @@ class AyarlarDiyalogu(QDialog):
         satir.addStretch(1)
 
         aciklama = QLabel(
-            "Yeni sürüm GitHub'daki resmî yayın sayfasından indirilir, indirilen "
+            "Yeni sürüm resmî yayın sayfasından indirilir, indirilen "
             "paketin SHA-256 özeti doğrulanır ve kurulum onayınızdan sonra yapılır. "
             "Ayarlarınız, arşiviniz ve Drive bağlantınız güncellemeden etkilenmez."
         )

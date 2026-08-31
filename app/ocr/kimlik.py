@@ -197,6 +197,34 @@ def kimlik_oku(
     )
 
 
+def _metin_varyantlari(goruntu: Image.Image):
+    """MRZ'siz belge okumasi icin denenecek (etiket, goruntu, psm) ucluleri.
+
+    Cozunurluk BILEREK dusurulmez: surucu belgesinde TC, '4d.32170008012'
+    seklinde milimetrik bir satirda yazar ve kucultulmus goruntude kayboluyor.
+
+    Sira maliyete gore: temiz bir taramada ilk gecis yeter, dondurmeler ancak
+    hicbir sey bulunamadiginda calisir.
+    """
+    gri = ImageOps.grayscale(goruntu)
+
+    # 1) Gri tonlama, tek metin blogu. RENKLI goruntu BILEREK kullanilmiyor:
+    #    gercek bir surucu belgesi taramasinda renkli gecis TC'yi hic
+    #    bulamazken ayni goruntunun gri hali dogru okudu.
+    yield "gri", gri, 6
+
+    # 2) Dagilmis metin. Kimlik/ehliyet gibi kucuk alanlarin sayfaya
+    #    yayildigi taramalarda ad ve soyad satirlarini daha temiz cikarir.
+    yield "gri_dagilmis", gri, 11
+
+    # 3) Kontrast esitleme - soluk fotokopiler icin
+    yield "kontrast", ImageOps.autocontrast(gri, cutoff=2), 6
+
+    # 4) Belge ters ya da yan taranmis olabilir
+    for aci in (180, 90, 270):
+        yield f"donmus_{aci}", gri.rotate(aci, expand=True), 6
+
+
 def _metinden_oku(
     goruntu: Image.Image, tesseract_yolu: str, deneme: int
 ) -> OkumaSonucu | None:
@@ -204,23 +232,50 @@ def _metinden_oku(
 
     Dogrulayici olarak TC'nin kendi saglama algoritmasi kullanilir; MRZ kadar
     kesin degildir, bu yuzden ek kanit aranir ve sonuc ORTA guvenle raporlanir.
-    """
-    try:
-        metin = engine.turkce_oku(goruntu, tesseract_yolu)
-    except Exception as exc:
-        log.warning("Belge metni okunamadi: %s", exc)
-        return None
 
-    aday = belge.tc_sec(metin)
+    Birden fazla OCR gecisi denenir ve alanlar gecisler ARASINDA toplanir:
+    ayni taramada psm 6 numarayi, psm 11 ise ad satirini daha temiz
+    cikarabiliyor. TC bulunur ve ad soyad tamamlanir tamamlanmaz durulur.
+    """
+    aday = None
+    ad = soyad = ""
+    dogum = None
+    kaynak = ""
+
+    for etiket, varyant, psm in _metin_varyantlari(goruntu):
+        deneme += 1
+        try:
+            metin = engine.turkce_oku(varyant, tesseract_yolu, psm=psm)
+        except Exception as exc:
+            log.warning("Belge metni okunamadi (%s): %s", etiket, exc)
+            continue
+        if not metin.strip():
+            continue
+
+        if aday is None:
+            aday = belge.tc_sec(metin)
+            if aday is not None:
+                kaynak = etiket
+        if not ad or not soyad:
+            yeni_ad, yeni_soyad = belge.ad_soyad_sec(metin)
+            ad = ad or yeni_ad
+            soyad = soyad or yeni_soyad
+        if dogum is None:
+            dogum = belge.dogum_tarihi_sec(metin)
+
+        # Ad ve soyad kontrol hanesiz oldugu icin zaten kasiyer onayina
+        # gidiyor; ikisi de doluyken daha fazla gecis denemeye deger degil.
+        if aday is not None and ad and soyad:
+            break
+
     if aday is None:
         return None
 
-    ad, soyad = belge.ad_soyad_sec(metin)
     kimlik = KimlikBilgisi(
         tc=aday.tc,
         ad=ad,
         soyad=soyad,
-        dogum_tarihi=belge.dogum_tarihi_sec(metin),
+        dogum_tarihi=dogum,
         kontroller={
             "tc_algoritma": True,  # tc_sec yalnizca algoritmadan gecenleri doner
             "tc_etiketli": aday.etiketli,
@@ -233,12 +288,15 @@ def _metinden_oku(
     if aday.tekrar >= 2:
         kanit.append(f"belgede {aday.tekrar} yerde aynı")
 
-    log.info("TC belge metninden okundu: %s (%s)", aday.tc, ", ".join(kanit))
+    log.info(
+        "TC belge metninden okundu: %s (%s varyanti, %s)",
+        aday.tc, kaynak, ", ".join(kanit),
+    )
     return OkumaSonucu(
         kimlik=kimlik,
         dogrulandi=True,
         guven=ORTA,
-        deneme_sayisi=deneme + 1,
+        deneme_sayisi=deneme,
         ad_onay_gerekli=bool(ad or soyad),
         mesaj=(
             "MRZ yok; TC belge metninden okundu ("
@@ -280,7 +338,9 @@ def _turkce_adi_uygula(
     uygulandiginda True doner ve cagiran taraf adi kasiyerin onayina sunar.
     """
     try:
-        metin = engine.turkce_oku(goruntu, tesseract_yolu)
+        # Gri tonlama: renkli goruntude Tesseract belirgin sekilde daha kotu
+        # okuyor (bkz. _metin_varyantlari).
+        metin = engine.turkce_oku(ImageOps.grayscale(goruntu), tesseract_yolu)
     except Exception as exc:
         log.warning("Turkce ad okumasi basarisiz: %s", exc)
         return False

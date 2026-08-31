@@ -194,13 +194,18 @@ def son_yayin(zaman_asimi: float = 15.0) -> Yayin:
             raise GuncellemeHatasi("Henüz yayımlanmış bir sürüm yok.") from exc
         if exc.code == 403:
             raise GuncellemeHatasi(
-                "GitHub sorgu sınırına takıldı. Bir süre sonra tekrar deneyin."
+                "Güncelleme sunucusunun sorgu sınırına takıldı. Bir süre "
+                "sonra tekrar deneyin."
             ) from exc
-        raise GuncellemeHatasi(f"GitHub yanıt vermedi (HTTP {exc.code}).") from exc
+        raise GuncellemeHatasi(
+            f"Güncelleme sunucusu yanıt vermedi (HTTP {exc.code})."
+        ) from exc
     except (URLError, TimeoutError, OSError) as exc:
         raise GuncellemeHatasi(f"İnternet bağlantısı kurulamadı: {exc}") from exc
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise GuncellemeHatasi("GitHub yanıtı çözümlenemedi.") from exc
+        raise GuncellemeHatasi(
+            "Güncelleme sunucusunun yanıtı çözümlenemedi."
+        ) from exc
 
     return yayini_ayristir(veri)
 

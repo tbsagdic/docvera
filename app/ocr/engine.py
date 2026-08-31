@@ -56,9 +56,11 @@ def tesseract_bul(ayar_yolu: str = "") -> str:
             return aday
 
     raise OcrYok(
-        "Tesseract OCR bulunamadı. Otomatik kimlik okuma için kurulması gerekir.\n\n"
-        "https://github.com/UB-Mannheim/tesseract/wiki adresinden kurun ve "
-        "kurulum sırasında Türkçe dil paketini seçin."
+        "Tesseract OCR bulunamadı. Otomatik kimlik okuma bu bileşene "
+        "ihtiyaç duyar.\n\n"
+        "Uygulama eksik bileşeni açılışta kendisi kurmayı önerir; "
+        "öneriyi kapattıysanız uygulamayı yeniden başlatın. Kimlik "
+        "bilgilerini bu arada elle girebilirsiniz."
     )
 
 
@@ -179,10 +181,15 @@ def mrz_oku(goruntu: Image.Image, ayar_yolu: str = "") -> str:
     )
 
 
-def turkce_oku(goruntu: Image.Image, ayar_yolu: str = "") -> str:
-    """Turkce alanlar icin OCR gecisi (Ş, Ğ, İ, Ö, Ü, Ç harflerini tanir)."""
+def turkce_oku(goruntu: Image.Image, ayar_yolu: str = "", psm: int = 6) -> str:
+    """Turkce alanlar icin OCR gecisi (Ş, Ğ, İ, Ö, Ü, Ç harflerini tanir).
+
+    psm 6 sayfayi tek bir metin blogu sayar ve duz bir belgede en iyisidir.
+    Kimlik karti ya da surucu belgesi gibi kucuk alanlarin sayfaya dagildigi
+    taramalarda psm 11 ("dagilmis metin") satirlari daha temiz cikarir.
+    """
     mevcut = diller(ayar_yolu)
     dil = "tur" if "tur" in mevcut else "eng"
     if dil == "eng":
         log.warning("Turkce dil paketi kurulu degil; Ingilizce ile okunuyor")
-    return metin_oku(goruntu, dil=dil, psm=6, ayar_yolu=ayar_yolu)
+    return metin_oku(goruntu, dil=dil, psm=psm, ayar_yolu=ayar_yolu)

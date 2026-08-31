@@ -128,6 +128,30 @@ class TestAdSoyad:
         ad, soyad = ad_soyad_sec("1. KARA ÖZTÜRK\n2. Ali Veli\n")
         assert (ad, soyad) == ("Ali Veli", "KARA ÖZTÜRK")
 
+    def test_alan_numarasindan_once_leke_olabilir(self):
+        """Kart cercevesi satir basina tek karakterlik lekeler birakiyor.
+
+        Gercek bir surucu belgesi taramasinda satirlar '7 1. ÖZDEMİR' ve
+        'ç 2. Ali' seklinde cikti; satir basina baglayan desen ikisini de
+        kaciriyordu.
+        """
+        ad, soyad = ad_soyad_sec("7 1. ÖZDEMİR j Ae le | Fi\nç 2. Ali m\n")
+        assert (ad, soyad) == ("Ali", "ÖZDEMİR")
+
+    def test_tek_harflik_leke_isme_karismaz(self):
+        ad, soyad = ad_soyad_sec("1. ÖZDEMİR j k\n2. Ali m\n")
+        assert (ad, soyad) == ("Ali", "ÖZDEMİR")
+
+    def test_yazim_bicimi_degisince_durulur(self):
+        """Soyad BUYUK, ad Ilk-Harfi-Buyuk yazilir; karisik olan leke demektir."""
+        ad, soyad = ad_soyad_sec("1. ÖZDEMİR Nazilli\n2. Ali Nazilli 09\n")
+        assert soyad == "ÖZDEMİR"
+        assert ad == "Ali Nazilli"
+
+    def test_tarih_satiri_ad_sanilmaz(self):
+        """'4a. 10.07.2023' icindeki '1' alan numarasi degildir."""
+        assert ad_soyad_sec("4a. 10.07.2023\n4b. 10.07.2033\n") == ("", "")
+
     def test_alan_yoksa_bos_doner(self):
         assert ad_soyad_sec("Burada numarali alan yok") == ("", "")
 

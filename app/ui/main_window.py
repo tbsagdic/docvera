@@ -587,15 +587,13 @@ class AnaPencere(QMainWindow):
 
     def hakkinda(self) -> None:
         from app.config import UYGULAMA_SURUMU
-        from app.guncelleme import DEPO
 
         QMessageBox.about(
             self,
             "Docvera hakkında",
             f"<b>Docvera</b> {UYGULAMA_SURUMU}<br><br>"
             "Müşteri evrağı tarama ve arşivleme uygulaması.<br><br>"
-            f"Kaynak kod ve sürümler:<br>"
-            f"<a href='https://github.com/{DEPO}'>github.com/{DEPO}</a>",
+            "Yeni sürüm için: Yardım &gt; Güncellemeleri denetle",
         )
 
     # --- Cihaz yonetimi ---------------------------------------------------
