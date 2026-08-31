@@ -45,6 +45,17 @@ ShowLanguageDialog=no
 CloseApplications=yes
 RestartApplications=no
 
+; Kod imzalama. tools/yayinla.py, DOCVERA_IMZA ortam degiskeni tanimliysa
+; ISCC'yi /DIMZALI ve /Sdocvera=<komut> ile cagirir. Imzasiz paket, Akilli
+; Uygulama Denetimi acik Windows 11 makinelerinde "Hata 4551" ile durur:
+; sihirbaz kendini %TEMP% klasorune acar, ilke o dosyayi calistirtmaz.
+; SignedUninstaller kaldirma dosyasini da imzalar; imzasiz unins000.exe ayni
+; ilkeye takilir ve program kaldirilamaz hale gelirdi.
+#ifdef IMZALI
+SignTool=docvera
+SignedUninstaller=yes
+#endif
+
 [Languages]
 Name: "turkce"; MessagesFile: "compiler:Languages\Turkish.isl"
 

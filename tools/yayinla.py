@@ -47,6 +47,8 @@ ISCC_ADAYLARI = (
 
 sys.path.insert(0, str(KOK))
 
+from tools import imzala  # noqa: E402  (KOK yola eklendikten sonra)
+
 
 def surum() -> str:
     from app.surum import SURUM
@@ -129,8 +131,12 @@ def kurulum_uret(s: str) -> Path | None:
         return None
 
     print("[+] Kurulum sihirbazi derleniyor...")
+    bayraklar = [f"/DSURUM={s}"]
+    if imzala.hazir_mi():
+        # Inno de $f yer tutucusunu bilir; sablonu oldugu gibi devrediyoruz.
+        bayraklar += ["/DIMZALI", f"/Sdocvera={imzala.sablon()}"]
     sonuc = subprocess.run(
-        [iscc, f"/DSURUM={s}", str(ISS)], cwd=KOK, capture_output=True, text=True
+        [iscc, *bayraklar, str(ISS)], cwd=KOK, capture_output=True, text=True
     )
     if sonuc.returncode != 0:
         raise SystemExit(
@@ -170,6 +176,24 @@ def notlar(s: str, sha: str, kurulum_sha: str = "") -> str:
         "Güncellemeleri denetle** (ya da günde bir kendiliğinden). "
         f"`Docvera-{s}-win64.zip` uygulamanın kendi güncellemesi için olan "
         "taşınabilir pakettir; elle indirmeniz gerekmez.\n\n"
+        "### Windows kurulumu engellerse\n\n"
+        "Bazı Windows 11 bilgisayarlarda **Akıllı Uygulama Denetimi** açıktır "
+        "ve kurulum şu hatayla durur:\n\n"
+        "> Geçici klasördeki dosya çalıştırılamadığından kurulum iptal edildi. "
+        "Hata 4551: Uygulama Denetimi ilkesi bu dosyayı engelledi.\n\n"
+        "Bu bir virüs uyarısı değildir: Windows tanımadığı yayıncıya ait "
+        "programları çalıştırmaz. Sırayla deneyin:\n\n"
+        f"1. `Docvera-{s}-win64.zip` dosyasını indirin; **açmadan önce** sağ "
+        "tık > **Özellikler** > alttaki **Engellemeyi kaldır** kutusunu "
+        "işaretleyip Tamam deyin. Zip'i açın, içindeki `Docvera` klasörünü "
+        "`%LOCALAPPDATA%\\Programs\\` altına kopyalayın, `Docvera.exe` "
+        "kısayolunu masaüstüne alın. Kurulum sihirbazına gerek kalmaz.\n"
+        "2. Olmazsa **Windows Güvenliği > Uygulama ve tarayıcı denetimi > "
+        "Akıllı Uygulama Denetimi ayarları > Kapalı**. Bu ayar bir kez "
+        "kapatılınca Windows yeniden kurulmadan geri açılamaz.\n"
+        "3. Bilgisayar şirkete ya da okula aitse ayar kilitli olabilir; "
+        "bilgi işlemden Docvera'yı izin listesine eklemesini isteyin."
+        "\n\n"
         "## Değişiklikler\n\n"
         f"{gecmis or '- (kayıt yok)'}\n\n"
         "## Doğrulama\n\n"
@@ -211,6 +235,14 @@ def main() -> int:
 
     paketi_denetle()
     s = surum()
+
+    # Imza ZIP'ten once: guncelleme paketi de imzali dosyalari tasisin.
+    if imzala.hazir_mi():
+        print("[+] Paket imzalaniyor...")
+        print(f"    {imzala.paketi_imzala(DIST)} dosya imzalandi.")
+    else:
+        print(imzala.uyari())
+
     zip_yolu = zip_uret(s)
     sha = ozet(zip_yolu)
     kurulum = kurulum_uret(s)

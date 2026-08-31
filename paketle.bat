@@ -19,7 +19,7 @@ set "PATH=%~dp0.venv\Scripts;%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\Sys
 
 if exist "credentials.json" (
     echo [i] credentials.json bulundu - ozel dagitim, pakete gomulecek.
-    .venv\Scripts\python.exe -m PyInstaller --clean --onedir --noconfirm --windowed ^
+    .venv\Scripts\python.exe -m PyInstaller --clean --onedir --noconfirm --windowed --noupx ^
         --name Docvera --paths . ^
         --icon "app\varliklar\docvera-simge.ico" ^
         --add-data "app\varliklar;app\varliklar" ^
@@ -27,7 +27,7 @@ if exist "credentials.json" (
         app\__main__.py
 ) else (
     echo [i] Standart paket: Drive baglantisini her kullanici kendi kurar.
-    .venv\Scripts\python.exe -m PyInstaller --clean --onedir --noconfirm --windowed ^
+    .venv\Scripts\python.exe -m PyInstaller --clean --onedir --noconfirm --windowed --noupx ^
         --name Docvera --paths . ^
         --icon "app\varliklar\docvera-simge.ico" ^
         --add-data "app\varliklar;app\varliklar" ^

@@ -482,7 +482,7 @@ aynı kök klasör altında birleşir.
 ## Dağıtım (.exe)
 
 ```bat
-.venv\Scripts\python.exe -m PyInstaller --onedir --noconfirm --windowed ^
+.venv\Scripts\python.exe -m PyInstaller --onedir --noconfirm --windowed --noupx ^
     --name Docvera --paths . app\__main__.py
 ```
 
@@ -502,6 +502,68 @@ yapılamazdı.
 
 `--onefile` yerine `--onedir` tercih edilir: tek dosyalı paket her açılışta kendini
 geçici klasöre açtığı için PySide6 ile başlangıç belirgin şekilde yavaşlar.
+
+`--noupx`: UPX ile sıkıştırılmış `.exe`, virüs tarayıcılarında ve Windows'un itibar
+denetimlerinde "paketleyici" imzası olarak görünür. Kazandırdığı birkaç on MB,
+imzasız bir pakette yol açtığı yanlış pozitiflere değmiyor.
+
+### Windows'un imzasız paketi engellemesi
+
+Bazı hedef makinelerde kurulum şu hatayla durur:
+
+> Geçici klasördeki dosya çalıştırılamadığından kurulum iptal edildi.
+> Hata 4551: Uygulama Denetimi ilkesi bu dosyayı engelledi.
+
+Sebep virüs değil **imza**. Windows 11'in **Akıllı Uygulama Denetimi** (Smart App
+Control) ve kurumsal **App Control for Business** (WDAC) ilkeleri, tanınmış bir
+yayıncı sertifikasıyla imzalanmamış çalıştırılabilir dosyaları hiç çalıştırmaz.
+Inno Setup sihirbazı ilk iş olarak kendini `%TEMP%` altına açıp oradaki
+`setup.tmp` dosyasını çalıştırdığı için engel tam o noktada görünür — kurulum
+daha tek dosya kopyalamadan iptal olur.
+
+Hangi ilkenin engellediği hedef makinede **Olay Görüntüleyicisi > Uygulama ve
+Hizmet Günlükleri > Microsoft > Windows > CodeIntegrity > Operational** altında
+görülür: Akıllı Uygulama Denetimi kullanıcı tarafından kapatılabilir, kurumsal
+WDAC ilkesi kapatılamaz — onu ancak bilgi işlem izin listesine ekleyebilir.
+
+**Kalıcı çözüm: kod imzalama.** Sertifika alındığında `DOCVERA_IMZA` ortam
+değişkenini `signtool` komutuna ayarlamak yeterlidir; `$f` imzalanacak dosyanın
+yerine geçer:
+
+```bat
+set DOCVERA_IMZA=signtool.exe sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /a $f
+```
+
+Değişken tanımlıysa [`tools/yayinla.py`](tools/yayinla.py) yayın öncesinde
+[`tools/imzala.py`](tools/imzala.py) ile `dist\Docvera` altındaki bütün `.exe`,
+`.dll` ve `.pyd` dosyalarını imzalar, ardından ISCC'yi `/DIMZALI` ile çağırır;
+sihirbaz ve `unins000.exe` de imzalanır. Sadece `.exe` imzalamak yetmez: ilke
+sürece yüklenen DLL'leri de denetler, biri imzasız kalırsa uygulama açılışta
+düşer. Değişken tanımlı değilse paketleme aynen sürer, betik yalnızca paketin
+imzasız çıktığını uyarır — sertifikası olmayan geliştirici de paket üretebilir.
+
+Sertifika tarafında iki yol var: **Azure Trusted Signing** (aylık abonelik,
+kimlik doğrulaması gerekir, sertifikayı Microsoft saklar) ya da bir CA'dan
+**OV/EV kod imzalama sertifikası** (EV donanım anahtarıyla gelir ve itibar
+biriktirmeyi beklemeden geçer). OV sertifikası SmartScreen uyarısını hemen
+kaldırmaz; itibar birikene kadar uyarı sürebilir.
+
+**Sertifika gelene kadar** son kullanıcıya söylenecekler — bu üç adım yayın
+notlarına da otomatik yazılır:
+
+1. `Docvera-<sürüm>-win64.zip` indirilir; **açmadan önce** sağ tık > Özellikler >
+   **Engellemeyi kaldır**. Zip açılır, içindeki `Docvera` klasörü
+   `%LOCALAPPDATA%\Programs\` altına kopyalanır, `Docvera.exe` kısayolu
+   masaüstüne alınır. Sihirbaz devreye girmediği için `%TEMP%` adımı da yok;
+   çoğu makinede bu yeterli olur.
+2. Yetmezse **Windows Güvenliği > Uygulama ve tarayıcı denetimi > Akıllı Uygulama
+   Denetimi ayarları > Kapalı**. Bu ayar bir kez kapatılınca Windows yeniden
+   kurulmadan geri açılamaz; kullanıcıya bunu söyleyin.
+3. Makine bir kuruma aitse ayar kilitlidir; bilgi işlemin Docvera'yı izin
+   listesine eklemesi gerekir.
+
+Elle kopyalanan kurulum **güncellemeyi bozmaz**: uygulama kendi güncellemesinde
+zip'i kendisi indirip açar, indirilen dosyalara internet işareti (MOTW) konmaz.
 
 ---
 
